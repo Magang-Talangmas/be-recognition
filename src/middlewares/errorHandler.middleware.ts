@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import { MulterError } from 'multer';
 import { AppError } from '../errors/AppError';
 import { ValidationError } from '../errors/ValidationError';
 import { logger } from '../config/logger';
@@ -35,7 +36,35 @@ export const errorHandlerMiddleware = (
       errors: fieldErrors,
     };
 
-    res.status(HTTP_STATUS.BAD_REQUEST).json(response);
+    res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json(response);
+    return;
+  }
+
+  // Multer (upload file) error
+  if (err instanceof MulterError) {
+    logger.warn('Upload file error', {
+      path: req.path,
+      method: req.method,
+      message: err.message,
+    });
+
+    const response: ApiErrorResponse = {
+      success: false,
+      message: err.message,
+    };
+
+    res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json(response);
+    return;
+  }
+
+  // Error operasional dari fileFilter multer
+  if (err instanceof Error && err.message === 'Hanya file gambar yang diperbolehkan') {
+    const response: ApiErrorResponse = {
+      success: false,
+      message: err.message,
+    };
+
+    res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json(response);
     return;
   }
 

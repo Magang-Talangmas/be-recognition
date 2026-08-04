@@ -7,7 +7,7 @@ import {
 } from '../validators/employee.validator';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { ApiSuccessResponse } from '../interfaces/api-response.interface';
-import { Employee } from '@prisma/client';
+import { EmployeeResponseItem } from '../interfaces/employee.interface';
 
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) {}
@@ -19,11 +19,13 @@ export class EmployeeController {
   ): Promise<void> => {
     try {
       const body = createEmployeeSchema.parse(req.body);
-      const employee = await this.employeeService.createEmployee(body);
+      const photoUrls = req.uploadedPhotos ?? [];
 
-      const response: ApiSuccessResponse<Employee> = {
+      const employee = await this.employeeService.createEmployee(body, photoUrls);
+
+      const response: ApiSuccessResponse<EmployeeResponseItem> = {
         success: true,
-        message: 'Employee berhasil dibuat',
+        message: 'Karyawan berhasil ditambahkan',
         data: employee,
       };
 
@@ -44,9 +46,8 @@ export class EmployeeController {
 
       const response = {
         success: true,
-        message: 'Berhasil mengambil daftar employee',
-        data: result.data,
-        pagination: result.pagination,
+        message: 'Berhasil mengambil daftar karyawan',
+        data: result,
       };
 
       res.status(HTTP_STATUS.OK).json(response);
@@ -64,9 +65,9 @@ export class EmployeeController {
       const id = req.params['id'] as string;
       const employee = await this.employeeService.getEmployeeById(id);
 
-      const response: ApiSuccessResponse<Employee> = {
+      const response: ApiSuccessResponse<EmployeeResponseItem> = {
         success: true,
-        message: 'Berhasil mengambil detail employee',
+        message: 'Berhasil mengambil detail karyawan',
         data: employee,
       };
 
@@ -84,11 +85,55 @@ export class EmployeeController {
     try {
       const id = req.params['id'] as string;
       const body = updateEmployeeSchema.parse(req.body);
-      const employee = await this.employeeService.updateEmployee(id, body);
+      const photoUrls = req.uploadedPhotos ?? [];
 
-      const response: ApiSuccessResponse<Employee> = {
+      const employee = await this.employeeService.updateEmployee(id, body, photoUrls);
+
+      const response: ApiSuccessResponse<EmployeeResponseItem> = {
         success: true,
-        message: 'Employee berhasil diperbarui',
+        message: 'Karyawan berhasil diperbarui',
+        data: employee,
+      };
+
+      res.status(HTTP_STATUS.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  toggleStatus = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const id = req.params['id'] as string;
+      const employee = await this.employeeService.toggleStatus(id);
+
+      const response: ApiSuccessResponse<EmployeeResponseItem> = {
+        success: true,
+        message: 'Status karyawan diubah',
+        data: employee,
+      };
+
+      res.status(HTTP_STATUS.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  toggleFace = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const id = req.params['id'] as string;
+      const employee = await this.employeeService.toggleFace(id);
+
+      const response: ApiSuccessResponse<EmployeeResponseItem> = {
+        success: true,
+        message: 'Status wajah diubah',
         data: employee,
       };
 
@@ -107,7 +152,13 @@ export class EmployeeController {
       const id = req.params['id'] as string;
       await this.employeeService.deleteEmployee(id);
 
-      res.status(HTTP_STATUS.NO_CONTENT).send();
+      const response: ApiSuccessResponse<null> = {
+        success: true,
+        message: 'Karyawan berhasil dihapus',
+        data: null,
+      };
+
+      res.status(HTTP_STATUS.OK).json(response);
     } catch (error) {
       next(error);
     }

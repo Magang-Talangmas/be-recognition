@@ -22,13 +22,18 @@ async function seed() {
 
   // Buat employee contoh
   const employee = await prisma.employee.upsert({
-    where: { employeeId: 'EMP001' },
+    where: { employeeId: 'EMP-001' },
     update: {},
     create: {
-      employeeId: 'EMP001',
+      employeeId: 'EMP-001',
       name: 'Budi Santoso',
+      email: 'budi@talangmas.co.id',
       department: 'Engineering',
       position: 'Developer',
+      isActive: true,
+      faceRegistered: true,
+      joinedAt: new Date('2023-02-14'),
+      photos: [],
     },
   });
   console.log('✅ Employee dibuat:', employee.employeeId, '-', employee.name);

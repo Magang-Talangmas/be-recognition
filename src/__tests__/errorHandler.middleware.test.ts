@@ -63,7 +63,7 @@ describe('errorHandlerMiddleware', () => {
 
     errorHandlerMiddleware(zodError, req, res, mockNext);
 
-    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNPROCESSABLE_ENTITY);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
@@ -86,7 +86,7 @@ describe('errorHandlerMiddleware', () => {
 
     errorHandlerMiddleware(validationError, req, res, mockNext);
 
-    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNPROCESSABLE_ENTITY);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
@@ -173,7 +173,7 @@ describe('errorHandlerMiddleware', () => {
 
     errorHandlerMiddleware(zodError, req, res, mockNext);
 
-    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+    expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNPROCESSABLE_ENTITY);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,

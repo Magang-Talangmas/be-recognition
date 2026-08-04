@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { EmployeeController } from '../controllers/employee.controller';
 import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
+import { uploadPhotos } from '../middlewares/upload.middleware';
 import { Role } from '@prisma/client';
 
 export const createEmployeeRouter = (
@@ -12,37 +13,69 @@ export const createEmployeeRouter = (
   router.use(authMiddleware);
 
   /**
-   * @route   GET /api/v1/employees
-   * @desc    Daftar semua employee (paginated)
-   * @access  JWT (ADMIN, VIEWER)
+   * @route   
+   * @desc    
+   * @access  
    */
   router.get('/', employeeController.getEmployees);
 
   /**
-   * @route   GET /api/v1/employees/:id
-   * @desc    Detail employee
-   * @access  JWT (ADMIN, VIEWER)
+   * @route   
+   * @desc    
+   * @access  
    */
   router.get('/:id', employeeController.getEmployeeById);
 
   /**
    * @route   POST /api/v1/employees
-   * @desc    Buat employee baru
+   * @desc    Tambah karyawan baru (multipart/form-data dengan photos)
    * @access  JWT (ADMIN only)
    */
-  router.post('/', requireRole(Role.ADMIN), employeeController.createEmployee);
+  router.post(
+    '/',
+    requireRole(Role.ADMIN),
+    uploadPhotos,
+    employeeController.createEmployee,
+  );
 
   /**
-   * @route   PATCH /api/v1/employees/:id
-   * @desc    Update employee
-   * @access  JWT (ADMIN only)
+   * @route   
+   * @desc    
+   * @access  
    */
-  router.patch('/:id', requireRole(Role.ADMIN), employeeController.updateEmployee);
+  router.put(
+    '/:id',
+    requireRole(Role.ADMIN),
+    uploadPhotos,
+    employeeController.updateEmployee,
+  );
 
   /**
-   * @route   DELETE /api/v1/employees/:id
-   * @desc    Soft delete employee
-   * @access  JWT (ADMIN only)
+   * @route   
+   * @desc    
+   * @access  
+   */
+  router.patch(
+    '/:id/status',
+    requireRole(Role.ADMIN),
+    employeeController.toggleStatus,
+  );
+
+  /**
+   * @route   
+   * @desc    
+   * @access  
+   */
+  router.patch(
+    '/:id/face',
+    requireRole(Role.ADMIN),
+    employeeController.toggleFace,
+  );
+
+  /**
+   * @route   
+   * @desc    
+   * @access  
    */
   router.delete('/:id', requireRole(Role.ADMIN), employeeController.deleteEmployee);
 

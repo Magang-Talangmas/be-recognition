@@ -47,35 +47,61 @@ describe('Employee Validator', () => {
   describe('createEmployeeSchema', () => {
     it('harus berhasil validasi data employee valid', () => {
       const result = createEmployeeSchema.parse({
-        employeeId: 'EMP001',
-        name: 'Budi Santoso',
-        department: 'Engineering',
-        position: 'Developer',
+        name: 'Andi Pratama',
+        email: 'Andi@talangmas.co.id',
+        position: 'Staff IT',
+        department: 'Information Technology',
+        status: 'Active',
+        joinedAt: '2023-02-14',
       });
 
-      expect(result.employeeId).toBe('EMP001');
-      expect(result.name).toBe('Budi Santoso');
+      expect(result.email).toBe('andi@talangmas.co.id'); // lowercase + trim
+      expect(result.name).toBe('Andi Pratama');
+      expect(result.status).toBe('Active');
     });
 
-    it('harus berhasil tanpa department dan position (optional)', () => {
+    it('harus berhasil tanpa status dan joinedAt (optional)', () => {
       const result = createEmployeeSchema.parse({
-        employeeId: 'EMP001',
         name: 'Budi',
+        email: 'budi@test.com',
+        position: 'Developer',
+        department: 'Engineering',
       });
 
-      expect(result.department).toBeUndefined();
-      expect(result.position).toBeUndefined();
+      expect(result.status).toBeUndefined();
+      expect(result.joinedAt).toBeUndefined();
     });
 
-    it('harus gagal jika employeeId kosong', () => {
+    it('harus gagal jika email tidak valid', () => {
       expect(() =>
-        createEmployeeSchema.parse({ employeeId: '', name: 'Budi' }),
+        createEmployeeSchema.parse({
+          name: 'Budi',
+          email: 'bukan-email',
+          position: 'Developer',
+          department: 'Engineering',
+        }),
       ).toThrow();
     });
 
     it('harus gagal jika name tidak ada', () => {
       expect(() =>
-        createEmployeeSchema.parse({ employeeId: 'EMP001' }),
+        createEmployeeSchema.parse({
+          email: 'budi@test.com',
+          position: 'Developer',
+          department: 'Engineering',
+        }),
+      ).toThrow();
+    });
+
+    it('harus gagal jika joinedAt bukan format YYYY-MM-DD', () => {
+      expect(() =>
+        createEmployeeSchema.parse({
+          name: 'Budi',
+          email: 'budi@test.com',
+          position: 'Developer',
+          department: 'Engineering',
+          joinedAt: '14-02-2023',
+        }),
       ).toThrow();
     });
   });
@@ -99,37 +125,41 @@ describe('Employee Validator', () => {
       const result = employeeFilterSchema.parse({});
 
       expect(result.page).toBe(1);
-      expect(result.limit).toBe(20);
+      expect(result.per_page).toBe(10);
     });
 
-    it('harus berhasil dengan filter department', () => {
+    it('harus berhasil dengan filter lengkap', () => {
       const result = employeeFilterSchema.parse({
-        department: 'Engineering',
+        search: 'andi',
+        department: 'Information Technology',
+        status: 'Active',
         page: '2',
-        limit: '10',
+        per_page: '10',
       });
 
-      expect(result.department).toBe('Engineering');
+      expect(result.search).toBe('andi');
+      expect(result.department).toBe('Information Technology');
+      expect(result.status).toBe('Active');
       expect(result.page).toBe(2);
-      expect(result.limit).toBe(10);
+      expect(result.per_page).toBe(10);
     });
 
-    it('harus transform isActive string ke boolean', () => {
-      const resultTrue = employeeFilterSchema.parse({ isActive: 'true' });
-      expect(resultTrue.isActive).toBe(true);
+    it('harus transform status string', () => {
+      const resultActive = employeeFilterSchema.parse({ status: 'Active' });
+      expect(resultActive.status).toBe('Active');
 
-      const resultFalse = employeeFilterSchema.parse({ isActive: 'false' });
-      expect(resultFalse.isActive).toBe(false);
+      const resultInactive = employeeFilterSchema.parse({ status: 'Inactive' });
+      expect(resultInactive.status).toBe('Inactive');
     });
 
-    it('harus isActive undefined jika value bukan true/false', () => {
-      const result = employeeFilterSchema.parse({ isActive: 'maybe' });
-      expect(result.isActive).toBeUndefined();
+    it('harus status undefined jika value tidak dikenal', () => {
+      const result = employeeFilterSchema.parse({ status: 'maybe' });
+      expect(result.status).toBeUndefined();
     });
 
-    it('harus gagal jika limit > 100', () => {
+    it('harus gagal jika per_page > 100', () => {
       expect(() =>
-        employeeFilterSchema.parse({ limit: '101' }),
+        employeeFilterSchema.parse({ per_page: '101' }),
       ).toThrow();
     });
 
