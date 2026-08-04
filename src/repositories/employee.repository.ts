@@ -1,20 +1,15 @@
-import { PrismaClient, Employee } from '@prisma/client';
-import { CreateEmployeeInput, UpdateEmployeeInput, EmployeeFilterInput } from '../validators/employee.validator';
+import { PrismaClient, Employee, Prisma } from '@prisma/client';
+import { EmployeeFilterInput } from '../validators/employee.validator';
 
-export interface PaginatedEmployees {
-  data: Employee[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+export interface EmployeeListRows {
+  items: Employee[];
+  total: number;
 }
 
 export class EmployeeRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async create(data: CreateEmployeeInput): Promise<Employee> {
+  async create(data: Prisma.EmployeeUncheckedCreateInput): Promise<Employee> {
     return this.prisma.employee.create({ data });
   }
 
@@ -26,43 +21,62 @@ export class EmployeeRepository {
     return this.prisma.employee.findUnique({ where: { employeeId } });
   }
 
-  async findMany(filter: EmployeeFilterInput): Promise<PaginatedEmployees> {
-    const skip = (filter.page - 1) * filter.limit;
+  async findByEmail(email: string): Promise<Employee | null> {
+    return this.prisma.employee.findUnique({ where: { email } });
+  }
+
+  async findMany(filter: EmployeeFilterInput): Promise<EmployeeListRows> {
+    const skip = (filter.page - 1) * filter.per_page;
 
     const where = {
-      ...(filter.department && { department: filter.department }),
-      ...(filter.isActive !== undefined && { isActive: filter.isActive }),
+      ...(filter.department ? { department: filter.department } : {}),
+      ...(filter.status ? { status: filter.status } : {}),
+      ...(filter.search
+        ? {
+            OR: [
+              { name: { contains: filter.search, mode: 'insensitive' as const } },
+              { employeeId: { contains: filter.search, mode: 'insensitive' as const } },
+              { email: { contains: filter.search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
     };
 
-    const [data, total] = await this.prisma.$transaction([
+    const [rows, total] = await this.prisma.$transaction([
       this.prisma.employee.findMany({
         where,
         skip,
-        take: filter.limit,
-        orderBy: { employeeId: 'asc' },
+        take: filter.per_page,
+        orderBy: [{ createdAt: 'desc' }, { name: 'asc' }],
       }),
       this.prisma.employee.count({ where }),
     ]);
 
-    return {
-      data,
-      pagination: {
-        total,
-        page: filter.page,
-        limit: filter.limit,
-        totalPages: Math.ceil(total / filter.limit),
-      },
-    };
+    return { items: rows, total };
   }
 
-  async update(id: string, data: UpdateEmployeeInput): Promise<Employee> {
+  async update(
+    id: string,
+    data: Prisma.EmployeeUncheckedUpdateInput,
+  ): Promise<Employee> {
     return this.prisma.employee.update({ where: { id }, data });
   }
 
   async softDelete(id: string): Promise<Employee> {
     return this.prisma.employee.update({
       where: { id },
-      data: { isActive: false },
+      data: { status: 'Inactive' },
+    });
+  }
+
+  async toggleStatus(id: string, status: string): Promise<Employee> {
+    return this.prisma.employee.update({ where: { id }, data: { status } });
+  }
+
+  async toggleFace(id: string, faceRegistered: boolean): Promise<Employee> {
+    return this.prisma.employee.update({
+      where: { id },
+      data: { faceRegistered },
     });
   }
 }

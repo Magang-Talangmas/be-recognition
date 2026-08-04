@@ -1,36 +1,28 @@
 import { Router } from 'express';
 import { DashboardController } from '../controllers/dashboard.controller';
-import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
-import { Role } from '@prisma/client';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 export const createDashboardRouter = (
   dashboardController: DashboardController,
 ): Router => {
   const router = Router();
 
+  // Dashboard read-only — cukup yang sudah terautentikasi
   router.use(authMiddleware);
-  router.use(requireRole(Role.ADMIN));
 
   /**
-   * @route   
-   * @desc    
-   * @access  
+   * @route   GET /api/v1/dashboard/summary
+   * @desc    Statistik card dashboard
+   * @access  Web Client (JWT)
    */
   router.get('/summary', dashboardController.getSummary);
 
   /**
-   * @route   
-   * @desc    
-   * @access  
+   * @route   GET /api/v1/dashboard/recent-activity
+   * @desc    Aktivitas pengenalan terbaru (limit 20)
+   * @access  Web Client (JWT)
    */
   router.get('/recent-activity', dashboardController.getRecentActivity);
-
-  /**
-   * @route   
-   * @desc    
-   * @access  
-   */
-  router.get('/live-feed', dashboardController.getLiveFeed);
 
   return router;
 };
