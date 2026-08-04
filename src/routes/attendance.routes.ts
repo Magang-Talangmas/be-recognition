@@ -18,16 +18,23 @@ export const createAttendanceRouter = (
   /**
    * @route   GET /api/v1/attendance
    * @desc    Daftar attendance (dengan filter & pagination)
-   * @access  Web Client (JWT)
+   * @access  Web Client / Mobile (JWT)
    */
   router.get('/', authMiddleware, attendanceController.getAttendances);
 
   /**
    * @route   GET /api/v1/attendance/:id
    * @desc    Detail attendance berdasarkan ID
-   * @access  Web Client (JWT)
+   * @access  Web Client / Mobile (JWT)
    */
   router.get('/:id', authMiddleware, attendanceController.getAttendanceById);
+
+  /**
+   * @route   PATCH /api/v1/attendance/:id/status
+   * @desc    Update status konfirmasi absensi (PENDING / CONFIRMED / REJECTED)
+   * @access  Web Client / Mobile (JWT)
+   */
+  router.patch('/:id/status', authMiddleware, attendanceController.updateConfirmationStatus);
 
   return router;
 };

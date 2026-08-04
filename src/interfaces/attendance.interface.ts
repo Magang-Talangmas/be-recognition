@@ -1,18 +1,35 @@
-import { AttendanceStatus } from '@prisma/client';
+import { AttendanceEventTypeValue } from '../validators/attendance.validator';
+
+export type ConfirmationStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 
 export interface AttendanceRequestBody {
-  employee_id?: string;
-  camera_id: string;
-  timestamp: string;
-  status?: AttendanceStatus;
+  event_id?: string;
+  employee_id: string;
+  event_type: AttendanceEventTypeValue;
+  similarity?: number;
+  detected_at: string;
+  camera_id?: string;
+}
+
+export interface AttendanceCreateInput {
+  externalEventId?: string;
+  employeeId: string;
+  cameraId: string;
+  eventType: string;
+  similarity?: number;
+  timestamp: Date;
+  confirmationStatus?: ConfirmationStatus;
 }
 
 export interface AttendanceRecord {
   id: string;
-  employeeId: string | null;
+  externalEventId: string | null;
+  employeeId: string;
   cameraId: string;
-  status: AttendanceStatus;
+  eventType: string;
+  similarity: number | null;
   timestamp: Date;
+  confirmationStatus: ConfirmationStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +46,8 @@ export interface AttendanceWithEmployee extends AttendanceRecord {
 
 export interface AttendanceFilter {
   employeeId?: string;
+  eventType?: string;
+  confirmationStatus?: ConfirmationStatus;
   startDate?: Date;
   endDate?: Date;
   page: number;

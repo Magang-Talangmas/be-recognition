@@ -22,20 +22,33 @@ model Employee {
   @@map("employees")
 }
 
+enum ConfirmationStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
 model Attendance {
-  id          String           @id @default(cuid())
-  employeeId  String?
-  cameraId    String
-  status      AttendanceStatus @default(CHECKED_IN)
-  timestamp   DateTime
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  employee    Employee?        @relation(fields: [employeeId], references: [employeeId])
+  id                 String             @id @default(cuid())
+  externalEventId    String?            @unique                  // event_id dari AI (idempotency key)
+  employeeId         String?
+  cameraId           String             @default("unknown")      // ID kamera, opsional dari AI
+  eventType          String             @default("CHECK_IN")     // CHECK_IN | CHECK_OUT | START_BREAK | dll
+  status             AttendanceStatus   @default(CHECKED_IN)
+  similarity         Float?                                      // Confidence score ArcFace (0.0–1.0)
+  timestamp          DateTime                                    // Waktu deteksi (detected_at dari AI)
+  confirmationStatus ConfirmationStatus @default(PENDING)       // PENDING | CONFIRMED | REJECTED
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  employee           Employee?          @relation(fields: [employeeId], references: [employeeId])
 
   @@index([employeeId])
   @@index([cameraId])
   @@index([timestamp])
   @@index([employeeId, timestamp])
+  @@index([eventType])
+  @@index([externalEventId])
+  @@index([confirmationStatus])
   @@map("attendances")
 }
 
