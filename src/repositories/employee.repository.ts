@@ -39,7 +39,7 @@ export class EmployeeRepository {
         where,
         skip,
         take: filter.limit,
-        orderBy: { name: 'asc' },
+        orderBy: { employeeId: 'asc' },
       }),
       this.prisma.employee.count({ where }),
     ]);
