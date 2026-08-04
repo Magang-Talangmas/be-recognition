@@ -31,10 +31,40 @@ async function seed() {
       position: 'Developer',
     },
   });
-  console.log('✅ Employee dibuat:', employee.employeeId, '-', employee.name);
+  console.log('Employee dibuat:', employee.employeeId, '-', employee.name);
+
+  const cameras = [
+    {
+      cameraId: 'CAM-01',
+      name: 'Pintu Masuk',
+      location: 'Lantai 1 - Lobby',
+      isOnline: true,
+    },
+    {
+      cameraId: 'CAM-02',
+      name: 'Pintu Keluar',
+      location: 'Lantai 1 - Lobby',
+      isOnline: true,
+    },
+    {
+      cameraId: 'CAM-03',
+      name: 'Kantin',
+      location: 'Lantai 2 - Kantin',
+      isOnline: false,
+    },
+  ];
+
+  for (const camera of cameras) {
+    await prisma.camera.upsert({
+      where: { cameraId: camera.cameraId },
+      update: { name: camera.name, location: camera.location, isOnline: camera.isOnline },
+      create: camera,
+    });
+  }
+  console.log(` ${cameras.length} kamera CCTV dibuat`);
 
   await prisma.$disconnect();
-  console.log('✅ Seeding selesai!');
+  console.log(' Seeding selesai!');
 }
 
 seed().catch((e) => {

@@ -19,6 +19,7 @@ export class AttendanceController {
       await this.attendanceService.processAttendance({
         employeeId: body.employee_id,
         cameraId: body.camera_id,
+        status: body.status,
         timestamp: body.timestamp,
       });
 

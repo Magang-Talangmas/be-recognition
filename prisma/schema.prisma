@@ -23,15 +23,17 @@ model Employee {
 }
 
 model Attendance {
-  id          String   @id @default(cuid())
-  employeeId  String
+  id          String           @id @default(cuid())
+  employeeId  String?
   cameraId    String
+  status      AttendanceStatus @default(CHECKED_IN)
   timestamp   DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  employee    Employee @relation(fields: [employeeId], references: [employeeId])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  employee    Employee?        @relation(fields: [employeeId], references: [employeeId])
 
   @@index([employeeId])
+  @@index([cameraId])
   @@index([timestamp])
   @@index([employeeId, timestamp])
   @@map("attendances")
@@ -54,4 +56,25 @@ model User {
 enum Role {
   ADMIN
   VIEWER
+}
+
+model Camera {
+  id        String   @id @default(cuid())
+  cameraId  String   @unique
+  name      String
+  location  String?
+  isOnline  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cameraId])
+  @@map("cameras")
+}
+
+enum AttendanceStatus {
+  CHECKED_IN
+  ON_BREAK
+  TRACKING_PAUSE
+  CHECKED_OUT
+  UNKNOWN
 }
