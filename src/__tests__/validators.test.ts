@@ -7,6 +7,7 @@ import {
 import {
   attendanceBodySchema,
   attendanceFilterSchema,
+  updateConfirmationStatusSchema,
 } from '../validators/attendance.validator';
 
 describe('Auth Validator', () => {
@@ -143,46 +144,78 @@ describe('Employee Validator', () => {
 
 describe('Attendance Validator', () => {
   describe('attendanceBodySchema', () => {
-    it('harus berhasil validasi data attendance valid', () => {
-      const result = attendanceBodySchema.parse({
-        employee_id: 'EMP001',
-        camera_id: 'CAM01',
-        timestamp: '2026-08-03T08:00:00Z',
-      });
+    const validPayload = {
+      employee_id: 'EMP001',
+      event_type: 'CHECK_IN',
+      detected_at: '2026-08-04T13:02:37Z',
+    };
 
+    it('harus berhasil validasi payload minimal (tanpa field opsional)', () => {
+      const result = attendanceBodySchema.parse(validPayload);
       expect(result.employee_id).toBe('EMP001');
-      expect(result.camera_id).toBe('CAM01');
+      expect(result.event_type).toBe('CHECK_IN');
+      expect(result.detected_at).toBe('2026-08-04T13:02:37Z');
     });
 
-    it('harus gagal jika timestamp bukan ISO 8601', () => {
+    it('harus berhasil validasi payload lengkap dari AI', () => {
+      const result = attendanceBodySchema.parse({
+        event_id: '550e8400-e29b-41d4-a716-446655440000',
+        employee_id: 'akmalShaumNadzirin',
+        event_type: 'CHECK_OUT',
+        similarity: 0.593,
+        detected_at: '2026-08-04T13:02:37Z',
+        camera_id: 'main-entrance',
+      });
+      expect(result.event_id).toBe('550e8400-e29b-41d4-a716-446655440000');
+      expect(result.similarity).toBe(0.593);
+    });
+
+    it('harus berhasil untuk semua event_type yang valid', () => {
+      const validTypes = [
+        'CHECK_IN', 'CHECK_OUT', 'START_BREAK',
+        'RETURN_FROM_BREAK', 'TEMPORARY_EXIT', 'RETURN_FROM_TEMPORARY_EXIT',
+      ];
+      validTypes.forEach((type) => {
+        expect(() =>
+          attendanceBodySchema.parse({ ...validPayload, event_type: type }),
+        ).not.toThrow();
+      });
+    });
+
+    it('harus GAGAL jika event_type tidak valid', () => {
       expect(() =>
-        attendanceBodySchema.parse({
-          employee_id: 'EMP001',
-          camera_id: 'CAM01',
-          timestamp: '2026-08-03 08:00:00',
-        }),
+        attendanceBodySchema.parse({ ...validPayload, event_type: 'PARKIR' }),
       ).toThrow();
     });
 
-    it('harus gagal jika employee_id tidak ada', () => {
+    it('harus GAGAL jika detected_at bukan ISO 8601', () => {
       expect(() =>
-        attendanceBodySchema.parse({
-          camera_id: 'CAM01',
-          timestamp: '2026-08-03T08:00:00Z',
-        }),
+        attendanceBodySchema.parse({ ...validPayload, detected_at: '04-08-2026 13:00' }),
       ).toThrow();
     });
 
-    it('harus gagal jika camera_id kosong', () => {
+    it('harus GAGAL jika employee_id tidak ada', () => {
       expect(() =>
-        attendanceBodySchema.parse({
-          employee_id: 'EMP001',
-          camera_id: '',
-          timestamp: '2026-08-03T08:00:00Z',
-        }),
+        attendanceBodySchema.parse({ event_type: 'CHECK_IN', detected_at: '2026-08-04T13:00:00Z' }),
+      ).toThrow();
+    });
+
+    it('harus GAGAL jika event_id ada tapi bukan format UUID', () => {
+      expect(() =>
+        attendanceBodySchema.parse({ ...validPayload, event_id: 'bukan-uuid' }),
+      ).toThrow();
+    });
+
+    it('harus GAGAL jika similarity di luar range 0–1', () => {
+      expect(() =>
+        attendanceBodySchema.parse({ ...validPayload, similarity: 1.5 }),
+      ).toThrow();
+      expect(() =>
+        attendanceBodySchema.parse({ ...validPayload, similarity: -0.1 }),
       ).toThrow();
     });
   });
+
 
   describe('attendanceFilterSchema', () => {
     it('harus berhasil dengan default values', () => {
@@ -207,6 +240,13 @@ describe('Attendance Validator', () => {
       expect(result.limit).toBe(50);
     });
 
+    it('harus berhasil parsing confirmation_status', () => {
+      const result = attendanceFilterSchema.parse({
+        confirmation_status: 'pending',
+      });
+      expect(result.confirmation_status).toBe('PENDING');
+    });
+
     it('harus gagal jika start_date bukan ISO 8601', () => {
       expect(() =>
         attendanceFilterSchema.parse({ start_date: 'bukan-tanggal' }),
@@ -216,6 +256,20 @@ describe('Attendance Validator', () => {
     it('harus gagal jika limit > 100', () => {
       expect(() =>
         attendanceFilterSchema.parse({ limit: '200' }),
+      ).toThrow();
+    });
+  });
+
+  describe('updateConfirmationStatusSchema', () => {
+    it('harus berhasil validasi status CONFIRMED, REJECTED, PENDING', () => {
+      expect(updateConfirmationStatusSchema.parse({ status: 'confirmed' }).status).toBe('CONFIRMED');
+      expect(updateConfirmationStatusSchema.parse({ status: 'REJECTED' }).status).toBe('REJECTED');
+      expect(updateConfirmationStatusSchema.parse({ status: 'pending' }).status).toBe('PENDING');
+    });
+
+    it('harus GAGAL jika status tidak valid', () => {
+      expect(() =>
+        updateConfirmationStatusSchema.parse({ status: 'APPROVED' }),
       ).toThrow();
     });
   });

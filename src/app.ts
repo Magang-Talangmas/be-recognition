@@ -20,8 +20,9 @@ export const createApp = (): Application => {
   );
 
   // === Body Parser ===
-  app.use(express.json({ limit: '10kb' }));
+  app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
+
 
   // === Request Logger ===
   app.use(requestLoggerMiddleware);

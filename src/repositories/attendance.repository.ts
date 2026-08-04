@@ -1,19 +1,54 @@
 import { PrismaClient, Attendance } from '@prisma/client';
-import { AttendanceFilter, AttendanceWithEmployee, PaginatedAttendance } from '../interfaces/attendance.interface';
+import {
+  AttendanceCreateInput,
+  AttendanceFilter,
+  AttendanceWithEmployee,
+  ConfirmationStatus,
+  PaginatedAttendance,
+} from '../interfaces/attendance.interface';
 
 export class AttendanceRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient) { }
 
-  async create(data: {
-    employeeId: string;
-    cameraId: string;
-    timestamp: Date;
-  }): Promise<Attendance> {
+  async create(data: AttendanceCreateInput): Promise<Attendance> {
     return this.prisma.attendance.create({
       data: {
+        externalEventId: data.externalEventId,
         employeeId: data.employeeId,
         cameraId: data.cameraId,
+        eventType: data.eventType,
+        similarity: data.similarity,
         timestamp: data.timestamp,
+        confirmationStatus: (data.confirmationStatus ?? 'PENDING') as any,
+      },
+    });
+  }
+
+  // cek apakah event_id dari AI sudah pernah diproses.
+  async findByExternalEventId(externalEventId: string): Promise<Attendance | null> {
+    return this.prisma.attendance.findUnique({
+      where: { externalEventId },
+    });
+  }
+
+  // Cek apakah employee sudah memiliki record absensi pada hari yang sama (misal CHECK_IN hanya 1x per hari)
+  async findTodayAttendance(
+    employeeId: string,
+    eventType: string,
+    targetDate: Date = new Date(),
+  ): Promise<Attendance | null> {
+    const dayStr = targetDate.toISOString().split('T')[0];
+    const startOfDay = new Date(`${dayStr}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dayStr}T23:59:59.999Z`);
+
+    return this.prisma.attendance.findFirst({
+      where: {
+        employeeId,
+        eventType,
+        timestamp: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
     });
   }
@@ -35,18 +70,43 @@ export class AttendanceRepository {
     });
   }
 
+  async updateConfirmationStatus(
+    id: string,
+    status: ConfirmationStatus,
+  ): Promise<AttendanceWithEmployee | null> {
+    return this.prisma.attendance.update({
+      where: { id },
+      data: {
+        confirmationStatus: status as any,
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            employeeId: true,
+            name: true,
+            department: true,
+            position: true,
+          },
+        },
+      },
+    });
+  }
+
   async findMany(filter: AttendanceFilter): Promise<PaginatedAttendance> {
     const skip = (filter.page - 1) * filter.limit;
 
     const where = {
       ...(filter.employeeId && { employeeId: filter.employeeId }),
+      ...(filter.eventType && { eventType: filter.eventType }),
+      ...(filter.confirmationStatus && { confirmationStatus: filter.confirmationStatus as any }),
       ...(filter.startDate || filter.endDate
         ? {
-            timestamp: {
-              ...(filter.startDate && { gte: filter.startDate }),
-              ...(filter.endDate && { lte: filter.endDate }),
-            },
-          }
+          timestamp: {
+            ...(filter.startDate && { gte: filter.startDate }),
+            ...(filter.endDate && { lte: filter.endDate }),
+          },
+        }
         : {}),
     };
 

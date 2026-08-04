@@ -8,3 +8,8 @@ export const REDIS_PREFIX = {
 } as const;
 
 export type RedisPrefix = (typeof REDIS_PREFIX)[keyof typeof REDIS_PREFIX];
+
+export const buildAttendanceDebounceKey = (
+  employeeId: string,
+  eventType: string,
+): string => `${REDIS_PREFIX.ATTENDANCE}:${employeeId}:${eventType}`;

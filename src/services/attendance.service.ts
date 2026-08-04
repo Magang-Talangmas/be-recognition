@@ -2,58 +2,101 @@ import Redis from 'ioredis';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { logger } from '../config/logger';
-import { REDIS_ATTENDANCE_TTL, REDIS_PREFIX } from '../constants/redis.constants';
-import { AttendanceFilter, AttendanceWithEmployee, PaginatedAttendance } from '../interfaces/attendance.interface';
+import {
+  REDIS_ATTENDANCE_TTL,
+  buildAttendanceDebounceKey,
+} from '../constants/redis.constants';
+import {
+  AttendanceFilter,
+  AttendanceWithEmployee,
+  ConfirmationStatus,
+  PaginatedAttendance,
+} from '../interfaces/attendance.interface';
 import { NotFoundError } from '../errors/NotFoundError';
+
+export interface ProcessAttendanceInput {
+  externalEventId?: string;  // event_id dari AI (UUID, opsional)
+  employeeId: string;
+  cameraId: string;
+  eventType: string;
+  similarity?: number;
+  timestamp: string;         // ISO 8601 string (detected_at dari AI)
+}
 
 export class AttendanceService {
   constructor(
     private readonly attendanceRepository: AttendanceRepository,
     private readonly employeeRepository: EmployeeRepository,
     private readonly redis: Redis,
-  ) {}
+  ) { }
 
-  private buildRedisKey(employeeId: string): string {
-    return `${REDIS_PREFIX.ATTENDANCE}:${employeeId}`;
-  }
+  async processAttendance(data: ProcessAttendanceInput): Promise<void> {
+    if (data.externalEventId) {
+      const existing = await this.attendanceRepository
+        .findByExternalEventId(data.externalEventId)
+        .catch((err) => {
+          logger.error('DB error saat idempotency check', {
+            externalEventId: data.externalEventId,
+            error: err instanceof Error ? err.message : 'unknown',
+          });
+          return null; // Jika error, tetap lanjut (jangan block proses)
+        });
 
-  /**
-   * Proses attendance dari ML server.
-   *
-   * Flow (sesuai Golden Rule di prompt.md):
-   * 1. Cek Redis → jika ada cooldown, abaikan (return tanpa error)
-   * 2. Jika tidak ada cooldown → simpan ke DB
-   * 3. Simpan cooldown ke Redis (TTL 900 detik)
-   */
-  async processAttendance(data: {
-    employeeId: string;
-    cameraId: string;
-    timestamp: string;
-  }): Promise<void> {
-    const redisKey = this.buildRedisKey(data.employeeId);
-
-    // Step 1: Cek Redis cooldown
-    let cooldownExists: string | null = null;
-    try {
-      cooldownExists = await this.redis.get(redisKey);
-    } catch (redisError) {
-      logger.error('Redis error saat GET cooldown attendance', {
-        employeeId: data.employeeId,
-        error: redisError instanceof Error ? redisError.message : 'unknown',
-      });
-      // Jika Redis error, tetap lanjutkan agar sistem tidak down total
+      if (existing) {
+        logger.info('Attendance diabaikan (event_id sudah diproses — idempotent)', {
+          externalEventId: data.externalEventId,
+          employeeId: data.employeeId,
+          eventType: data.eventType,
+          existingAttendanceId: existing.id,
+        });
+        return;
+      }
     }
 
-    // Step 2: Jika cooldown aktif → abaikan
-    if (cooldownExists !== null) {
-      logger.info('Attendance diabaikan (cooldown Redis aktif)', {
+    // Cek apakah employee sudah memiliki absensi event_type ini pada hari yang sama (hanya 1x per hari)
+    const targetDate = new Date(data.timestamp);
+    const existingToday = await this.attendanceRepository
+      .findTodayAttendance(data.employeeId, data.eventType, targetDate)
+      .catch((err) => {
+        logger.error('DB error saat pengecekan daily attendance', {
+          employeeId: data.employeeId,
+          eventType: data.eventType,
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+        return null;
+      });
+
+    if (existingToday) {
+      logger.info('Attendance diabaikan (employee sudah tercatat pada hari ini)', {
         employeeId: data.employeeId,
-        cameraId: data.cameraId,
+        eventType: data.eventType,
+        date: data.timestamp.split('T')[0],
+        existingAttendanceId: existingToday.id,
       });
       return;
     }
 
-    // Step 3: Verifikasi employee ada di database
+    const redisKey = buildAttendanceDebounceKey(data.employeeId, data.eventType);
+    let cooldownExists: string | null = null;
+
+    try {
+      cooldownExists = await this.redis.get(redisKey);
+    } catch (redisError) {
+      logger.error('Redis error saat GET cooldown attendance', {
+        redisKey,
+        error: redisError instanceof Error ? redisError.message : 'unknown',
+      });
+    }
+
+    if (cooldownExists !== null) {
+      logger.info('Attendance diabaikan (Redis debounce aktif)', {
+        redisKey,
+        employeeId: data.employeeId,
+        eventType: data.eventType,
+      });
+      return;
+    }
+
     const employee = await this.employeeRepository.findByEmployeeId(data.employeeId);
     if (!employee) {
       logger.warn('Attendance diterima untuk employee tidak terdaftar', {
@@ -62,29 +105,56 @@ export class AttendanceService {
       throw new NotFoundError(`Employee dengan ID ${data.employeeId} tidak ditemukan`);
     }
 
-    // Step 4: Simpan ke database
     await this.attendanceRepository.create({
+      externalEventId: data.externalEventId,
       employeeId: data.employeeId,
       cameraId: data.cameraId,
+      eventType: data.eventType,
+      similarity: data.similarity,
       timestamp: new Date(data.timestamp),
+      confirmationStatus: 'PENDING',
     });
 
-    logger.info('Attendance berhasil disimpan', {
+    logger.info('Attendance berhasil disimpan (Status: PENDING)', {
       employeeId: data.employeeId,
-      cameraId: data.cameraId,
+      eventType: data.eventType,
+      similarity: data.similarity,
       timestamp: data.timestamp,
+      cameraId: data.cameraId,
+      confirmationStatus: 'PENDING',
     });
 
-    // Step 5: Set Redis cooldown
     try {
       await this.redis.set(redisKey, '1', 'EX', REDIS_ATTENDANCE_TTL);
     } catch (redisError) {
       logger.error('Redis error saat SET cooldown attendance', {
-        employeeId: data.employeeId,
+        redisKey,
         error: redisError instanceof Error ? redisError.message : 'unknown',
       });
-      // Data sudah tersimpan ke DB, log error Redis tapi tidak throw
     }
+  }
+
+  async updateConfirmationStatus(
+    id: string,
+    status: ConfirmationStatus,
+  ): Promise<AttendanceWithEmployee> {
+    const existing = await this.attendanceRepository.findById(id);
+    if (!existing) {
+      throw new NotFoundError(`Attendance dengan ID ${id} tidak ditemukan`);
+    }
+
+    const updated = await this.attendanceRepository.updateConfirmationStatus(id, status);
+    if (!updated) {
+      throw new NotFoundError(`Attendance dengan ID ${id} tidak ditemukan`);
+    }
+
+    logger.info('Status konfirmasi attendance diperbarui', {
+      attendanceId: id,
+      previousStatus: existing.confirmationStatus,
+      newStatus: status,
+    });
+
+    return updated;
   }
 
   async getAttendanceById(id: string): Promise<AttendanceWithEmployee> {

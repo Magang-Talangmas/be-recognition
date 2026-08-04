@@ -20,18 +20,25 @@ async function seed() {
   });
   console.log('✅ User dibuat:', user.email);
 
-  // Buat employee contoh
-  const employee = await prisma.employee.upsert({
-    where: { employeeId: 'EMP001' },
-    update: {},
-    create: {
-      employeeId: 'EMP001',
-      name: 'Budi Santoso',
-      department: 'Engineering',
-      position: 'Developer',
-    },
-  });
-  console.log('✅ Employee dibuat:', employee.employeeId, '-', employee.name);
+  // Buat employee terdaftar di AI
+  const initialEmployees = [
+    { employeeId: 'EMP001', name: 'Budi Santoso', department: 'Engineering', position: 'Developer' },
+    { employeeId: 'akmalShaumNadzirin', name: 'Akmal Shaum Nadzirin', department: 'Engineering', position: 'AI Engineer' },
+    { employeeId: 'gibranRaisHilmyIskandar', name: 'Gibran Rais Hilmy Iskandar', department: 'Engineering', position: 'Software Engineer' },
+    { employeeId: 'muchPanjiLaksono', name: 'Much Panji Laksono', department: 'Operations', position: 'Operations Specialist' },
+    { employeeId: 'sabrinaAskaAmalina', name: 'Sabrina Aska Amalina', department: 'HR', position: 'HR Specialist' },
+    { employeeId: 'septadaAlvianRasyid', name: 'Septada Alvian Rasyid', department: 'Management', position: 'Manager' },
+    { employeeId: 'tiaraSofa', name: 'Tiara Sofa', department: 'Finance', position: 'Finance Specialist' },
+  ];
+
+  for (const emp of initialEmployees) {
+    const record = await prisma.employee.upsert({
+      where: { employeeId: emp.employeeId },
+      update: {},
+      create: emp,
+    });
+    console.log('✅ Employee siap:', record.employeeId, '-', record.name);
+  }
 
   await prisma.$disconnect();
   console.log('✅ Seeding selesai!');
