@@ -1,24 +1,11 @@
-# Dependencies
 node_modules/
-
-# Production Build
 dist/
-
-# Environment Variables (Sangat penting agar rahasia tidak ter-push)
 .env
 .env.local
-
-# Testing & Coverage
 coverage/
-
-# Logs
 *.log
 logs/
-
-# System Files
 .DS_Store
 Thumbs.db
-
-# Documentation / Prompts internal
 prompt.md
 .prompt.md
