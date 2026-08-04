@@ -82,6 +82,7 @@ describe('AttendanceService', () => {
       expect(mockAttendanceRepository.create).toHaveBeenCalledWith({
         employeeId: 'EMP001',
         cameraId: 'CAM01',
+        status: 'CHECKED_IN',
         timestamp: new Date(attendanceData.timestamp),
       });
       expect(mockRedis.set).toHaveBeenCalledWith(

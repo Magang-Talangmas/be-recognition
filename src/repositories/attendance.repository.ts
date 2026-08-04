@@ -1,18 +1,20 @@
-import { PrismaClient, Attendance } from '@prisma/client';
+import { PrismaClient, Attendance, AttendanceStatus } from '@prisma/client';
 import { AttendanceFilter, AttendanceWithEmployee, PaginatedAttendance } from '../interfaces/attendance.interface';
 
 export class AttendanceRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   async create(data: {
-    employeeId: string;
+    employeeId: string | null;
     cameraId: string;
+    status: AttendanceStatus;
     timestamp: Date;
   }): Promise<Attendance> {
     return this.prisma.attendance.create({
       data: {
         employeeId: data.employeeId,
         cameraId: data.cameraId,
+        status: data.status,
         timestamp: data.timestamp,
       },
     });

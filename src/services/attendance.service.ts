@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { AttendanceStatus } from '@prisma/client';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { logger } from '../config/logger';
@@ -17,20 +18,22 @@ export class AttendanceService {
     return `${REDIS_PREFIX.ATTENDANCE}:${employeeId}`;
   }
 
-  /**
-   * Proses attendance dari ML server.
-   *
-   * Flow (sesuai Golden Rule di prompt.md):
-   * 1. Cek Redis → jika ada cooldown, abaikan (return tanpa error)
-   * 2. Jika tidak ada cooldown → simpan ke DB
-   * 3. Simpan cooldown ke Redis (TTL 900 detik)
-   */
+  private buildUnknownRedisKey(cameraId: string): string {
+    return `${REDIS_PREFIX.ATTENDANCE}:unknown:${cameraId}`;
+  }
+
   async processAttendance(data: {
-    employeeId: string;
+    employeeId?: string;
     cameraId: string;
+    status?: AttendanceStatus;
     timestamp: string;
   }): Promise<void> {
-    const redisKey = this.buildRedisKey(data.employeeId);
+    const employeeId = data.employeeId;
+    const status =
+      data.status ?? (employeeId ? AttendanceStatus.CHECKED_IN : AttendanceStatus.UNKNOWN);
+    const redisKey = employeeId
+      ? this.buildRedisKey(employeeId)
+      : this.buildUnknownRedisKey(data.cameraId);
 
     // Step 1: Cek Redis cooldown
     let cooldownExists: string | null = null;
@@ -38,7 +41,7 @@ export class AttendanceService {
       cooldownExists = await this.redis.get(redisKey);
     } catch (redisError) {
       logger.error('Redis error saat GET cooldown attendance', {
-        employeeId: data.employeeId,
+        employeeId,
         error: redisError instanceof Error ? redisError.message : 'unknown',
       });
       // Jika Redis error, tetap lanjutkan agar sistem tidak down total
@@ -47,31 +50,35 @@ export class AttendanceService {
     // Step 2: Jika cooldown aktif → abaikan
     if (cooldownExists !== null) {
       logger.info('Attendance diabaikan (cooldown Redis aktif)', {
-        employeeId: data.employeeId,
+        employeeId,
         cameraId: data.cameraId,
       });
       return;
     }
 
-    // Step 3: Verifikasi employee ada di database
-    const employee = await this.employeeRepository.findByEmployeeId(data.employeeId);
-    if (!employee) {
-      logger.warn('Attendance diterima untuk employee tidak terdaftar', {
-        employeeId: data.employeeId,
-      });
-      throw new NotFoundError(`Employee dengan ID ${data.employeeId} tidak ditemukan`);
+    // Step 3: Verifikasi employee ada di database (hanya untuk wajah dikenal)
+    if (employeeId) {
+      const employee = await this.employeeRepository.findByEmployeeId(employeeId);
+      if (!employee) {
+        logger.warn('Attendance diterima untuk employee tidak terdaftar', {
+          employeeId,
+        });
+        throw new NotFoundError(`Employee dengan ID ${employeeId} tidak ditemukan`);
+      }
     }
 
     // Step 4: Simpan ke database
     await this.attendanceRepository.create({
-      employeeId: data.employeeId,
+      employeeId: employeeId ?? null,
       cameraId: data.cameraId,
+      status,
       timestamp: new Date(data.timestamp),
     });
 
     logger.info('Attendance berhasil disimpan', {
-      employeeId: data.employeeId,
+      employeeId,
       cameraId: data.cameraId,
+      status,
       timestamp: data.timestamp,
     });
 
@@ -80,7 +87,7 @@ export class AttendanceService {
       await this.redis.set(redisKey, '1', 'EX', REDIS_ATTENDANCE_TTL);
     } catch (redisError) {
       logger.error('Redis error saat SET cooldown attendance', {
-        employeeId: data.employeeId,
+        employeeId,
         error: redisError instanceof Error ? redisError.message : 'unknown',
       });
       // Data sudah tersimpan ke DB, log error Redis tapi tidak throw

@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import { AttendanceStatus } from '@prisma/client';
 
 export const attendanceBodySchema = z.object({
   employee_id: z
-    .string({ required_error: 'employee_id wajib diisi' })
+    .string()
     .min(1, 'employee_id tidak boleh kosong')
-    .trim(),
+    .trim()
+    .optional(),
   camera_id: z
     .string({ required_error: 'camera_id wajib diisi' })
     .min(1, 'camera_id tidak boleh kosong')
@@ -13,6 +15,9 @@ export const attendanceBodySchema = z.object({
     .string({ required_error: 'timestamp wajib diisi' })
     .min(1, 'timestamp tidak boleh kosong')
     .datetime({ message: 'timestamp harus berformat ISO 8601 (contoh: 2026-08-03T08:00:00Z)' }),
+  status: z
+    .enum(Object.values(AttendanceStatus) as [AttendanceStatus, ...AttendanceStatus[]])
+    .optional(),
 });
 
 export const attendanceFilterSchema = z.object({
