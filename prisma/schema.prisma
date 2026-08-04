@@ -31,17 +31,19 @@ enum ConfirmationStatus {
 model Attendance {
   id                 String             @id @default(cuid())
   externalEventId    String?            @unique                  // event_id dari AI (idempotency key)
-  employeeId         String
+  employeeId         String?
   cameraId           String             @default("unknown")      // ID kamera, opsional dari AI
   eventType          String             @default("CHECK_IN")     // CHECK_IN | CHECK_OUT | START_BREAK | dll
+  status             AttendanceStatus   @default(CHECKED_IN)
   similarity         Float?                                      // Confidence score ArcFace (0.0–1.0)
   timestamp          DateTime                                    // Waktu deteksi (detected_at dari AI)
   confirmationStatus ConfirmationStatus @default(PENDING)       // PENDING | CONFIRMED | REJECTED
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-  employee           Employee           @relation(fields: [employeeId], references: [employeeId])
+  employee           Employee?          @relation(fields: [employeeId], references: [employeeId])
 
   @@index([employeeId])
+  @@index([cameraId])
   @@index([timestamp])
   @@index([employeeId, timestamp])
   @@index([eventType])
@@ -67,4 +69,25 @@ model User {
 enum Role {
   ADMIN
   VIEWER
+}
+
+model Camera {
+  id        String   @id @default(cuid())
+  cameraId  String   @unique
+  name      String
+  location  String?
+  isOnline  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cameraId])
+  @@map("cameras")
+}
+
+enum AttendanceStatus {
+  CHECKED_IN
+  ON_BREAK
+  TRACKING_PAUSE
+  CHECKED_OUT
+  UNKNOWN
 }

@@ -41,7 +41,7 @@ export interface AttendanceWithEmployee extends AttendanceRecord {
     name: string;
     department: string | null;
     position: string | null;
-  };
+  } | null;
 }
 
 export interface AttendanceFilter {

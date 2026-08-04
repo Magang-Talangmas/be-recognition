@@ -26,7 +26,7 @@ export const attendanceBodySchema = z.object({
     .optional(),
 
   employee_id: z
-    .string({ required_error: 'employee_id wajib diisi' })
+    .string()
     .min(1, 'employee_id tidak boleh kosong')
     .trim(),
 

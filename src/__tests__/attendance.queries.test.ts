@@ -70,7 +70,7 @@ describe('AttendanceService - getAttendanceById & getAttendances', () => {
 
       expect(mockAttendanceRepository.findById).toHaveBeenCalledWith('att-1');
       expect(result).toEqual(mockAttendanceWithEmployee);
-      expect(result.employee.name).toBe('Budi Santoso');
+      expect(result.employee?.name).toBe('Budi Santoso');
     });
 
     it('harus melempar NotFoundError jika attendance tidak ditemukan', async () => {

@@ -6,21 +6,25 @@ import { getRedisClient } from '../lib/redis/client';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { UserRepository } from '../repositories/user.repository';
+import { DashboardRepository } from '../repositories/dashboard.repository';
 
 // Services
 import { AttendanceService } from '../services/attendance.service';
 import { EmployeeService } from '../services/employee.service';
 import { AuthService } from '../services/auth.service';
+import { DashboardService } from '../services/dashboard.service';
 
 // Controllers
 import { AttendanceController } from '../controllers/attendance.controller';
 import { EmployeeController } from '../controllers/employee.controller';
 import { AuthController } from '../controllers/auth.controller';
+import { DashboardController } from '../controllers/dashboard.controller';
 
 // Route factories
 import { createAttendanceRouter } from './attendance.routes';
 import { createEmployeeRouter } from './employee.routes';
 import { createAuthRouter } from './auth.routes';
+import { createDashboardRouter } from './dashboard.routes';
 
 export const createRouter = (): Router => {
   const router = Router();
@@ -33,6 +37,7 @@ export const createRouter = (): Router => {
   const attendanceRepository = new AttendanceRepository(prisma);
   const employeeRepository = new EmployeeRepository(prisma);
   const userRepository = new UserRepository(prisma);
+  const dashboardRepository = new DashboardRepository(prisma);
 
   // Services
   const attendanceService = new AttendanceService(
@@ -42,16 +47,19 @@ export const createRouter = (): Router => {
   );
   const employeeService = new EmployeeService(employeeRepository);
   const authService = new AuthService(userRepository);
+  const dashboardService = new DashboardService(dashboardRepository);
 
   // Controllers
   const attendanceController = new AttendanceController(attendanceService);
   const employeeController = new EmployeeController(employeeService);
   const authController = new AuthController(authService);
+  const dashboardController = new DashboardController(dashboardService);
 
   // === Mount Routes ===
   router.use('/attendance', createAttendanceRouter(attendanceController));
   router.use('/employees', createEmployeeRouter(employeeController));
   router.use('/auth', createAuthRouter(authController));
+  router.use('/dashboard', createDashboardRouter(dashboardController));
 
   // Health check
   router.get('/health', (_req: Request, res: Response) => {
