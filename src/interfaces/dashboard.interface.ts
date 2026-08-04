@@ -1,14 +1,12 @@
-import { AttendanceStatus } from '@prisma/client';
-
 export interface DashboardSummary {
   totalEmployees: number;
-  checkedIn: number;
-  onBreak: number;
-  trackingPause: number;
-  checkedOut: number;
-  unknownFace: number;
-  cctvOnline: number;
-  cctvOffline: number;
+  active: number;
+  inactive: number;
+  faceRegistered: number;
+  faceNotRegistered: number;
+  presentToday: number;
+  departments: number;
+  recentActivity: number;
 }
 
 export interface RecentActivityItem {
@@ -18,14 +16,11 @@ export interface RecentActivityItem {
   camera: string;
 }
 
-export interface CameraFeedItem {
-  cameraId: string;
-  cameraName: string;
-  location: string | null;
-  online: boolean;
-}
-
-export interface CameraWithStatus {
-  employeeId: string | null;
-  status: AttendanceStatus;
+export interface RawDashboardSummary {
+  totalEmployees: number;
+  activeEmployees: number;
+  faceRegistered: number;
+  presentToday: number;
+  departmentCount: number;
+  recentActivity: number;
 }

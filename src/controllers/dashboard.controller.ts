@@ -2,7 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { DashboardService } from '../services/dashboard.service';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { ApiSuccessResponse } from '../interfaces/api-response.interface';
-import { DashboardSummary, RecentActivityItem, CameraFeedItem } from '../interfaces/dashboard.interface';
+import {
+  DashboardSummary,
+  RecentActivityItem,
+} from '../interfaces/dashboard.interface';
+
+const RECENT_ACTIVITY_LIMIT = 20;
 
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
@@ -14,11 +19,13 @@ export class DashboardController {
   ): Promise<void> => {
     try {
       const data = await this.dashboardService.getSummary();
+
       const response: ApiSuccessResponse<DashboardSummary> = {
         success: true,
-        message: 'Berhasil mengambil ringkasan dashboard',
+        message: 'Dashboard summary berhasil diambil',
         data,
       };
+
       res.status(HTTP_STATUS.OK).json(response);
     } catch (error) {
       next(error);
@@ -31,30 +38,16 @@ export class DashboardController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const data = await this.dashboardService.getRecentActivity();
+      const data = await this.dashboardService.getRecentActivity(
+        RECENT_ACTIVITY_LIMIT,
+      );
+
       const response: ApiSuccessResponse<RecentActivityItem[]> = {
         success: true,
-        message: 'Berhasil mengambil aktivitas pengenalan terbaru',
+        message: 'Aktivitas terbaru berhasil diambil',
         data,
       };
-      res.status(HTTP_STATUS.OK).json(response);
-    } catch (error) {
-      next(error);
-    }
-  };
 
-  getLiveFeed = async (
-    _req: Request,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
-    try {
-      const data = await this.dashboardService.getLiveFeed();
-      const response: ApiSuccessResponse<CameraFeedItem[]> = {
-        success: true,
-        message: 'Berhasil mengambil daftar kamera CCTV',
-        data,
-      };
       res.status(HTTP_STATUS.OK).json(response);
     } catch (error) {
       next(error);

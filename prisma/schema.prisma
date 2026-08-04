@@ -8,15 +8,16 @@ datasource db {
 }
 
 model Employee {
-  id         String       @id @default(cuid())
-  employeeId String       @unique
-  name       String
-  department String?
-  position   String?
-  isActive   Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  attendances Attendance[]
+  id             String       @id @default(cuid())
+  employeeId     String       @unique
+  name           String
+  department     String?
+  position       String?
+  isActive       Boolean      @default(true)
+  faceRegistered Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  attendances    Attendance[]
 
   @@index([employeeId])
   @@map("employees")
