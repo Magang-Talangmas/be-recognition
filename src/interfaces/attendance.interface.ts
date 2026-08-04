@@ -24,7 +24,7 @@ export interface AttendanceCreateInput {
 export interface AttendanceRecord {
   id: string;
   externalEventId: string | null;
-  employeeId: string;
+  employeeId: string | null;
   cameraId: string;
   eventType: string;
   similarity: number | null;
