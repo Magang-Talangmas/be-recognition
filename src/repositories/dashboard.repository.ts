@@ -20,7 +20,7 @@ export class DashboardRepository {
       recentActivity,
     ] = await this.prisma.$transaction([
       this.prisma.employee.count(),
-      this.prisma.employee.count({ where: { isActive: true } }),
+      this.prisma.employee.count({ where: { status: 'Active' } }),
       this.prisma.employee.count({ where: { faceRegistered: true } }),
       this.prisma.attendance.count({
         where: { timestamp: { gte: startOfDay, lt: endOfDay } },
