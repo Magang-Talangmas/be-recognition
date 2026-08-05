@@ -43,5 +43,12 @@ export const createMobileRouter = (
    */
   router.get('/attendance/history', authMiddleware, requireRole('EMPLOYEE'), mobileController.getHistory);
 
+  /**
+   * @route   GET /api/v1/mobile/schedule/today
+   * @desc    Mendapatkan jadwal hari ini untuk employee yang login
+   * @access  EMPLOYEE
+   */
+  router.get('/schedule/today', authMiddleware, requireRole('EMPLOYEE'), mobileController.getTodaySchedule);
+
   return router;
 };

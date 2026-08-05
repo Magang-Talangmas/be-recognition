@@ -6,19 +6,25 @@ import { z } from 'zod';
 import { createScheduleSchema, updateScheduleSchema } from '../validators/schedule.validator';
 
 export class ScheduleService {
-  constructor(private readonly repository: ScheduleRepository) {}
+  constructor(private readonly repository: ScheduleRepository) { }
 
   async createSchedule(data: z.infer<typeof createScheduleSchema>): Promise<WorkSchedule> {
     const existing = await this.repository.findByCode(data.scheduleCode);
     if (existing) {
       throw new ConflictError(`Jadwal dengan kode ${data.scheduleCode} sudah ada`);
     }
-    
+
     return this.repository.create(data);
   }
 
   async getAllSchedules(): Promise<WorkSchedule[]> {
     return this.repository.findAll();
+  }
+
+  async getScheduleByDay(day: string): Promise<WorkSchedule | null> {
+    const schedules = await this.repository.findAll();
+    const schedule = schedules.find(s => s.workDays.includes(day));
+    return schedule || null;
   }
 
   async getScheduleById(id: string): Promise<WorkSchedule> {

@@ -12,11 +12,14 @@ import { JwtPayload } from '../interfaces/auth.interface';
 
 const JWT_EXPIRY = '24h';
 
+import { ScheduleService } from '../services/schedule.service';
+
 export class MobileController {
   constructor(
     private readonly employeeRepository: EmployeeRepository,
     private readonly attendanceService: AttendanceService,
-  ) {}
+    private readonly scheduleService: ScheduleService,
+  ) { }
 
   login = async (
     req: Request,
@@ -148,7 +151,7 @@ export class MobileController {
 
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
-      
+
       const result = await this.attendanceService.getAttendances({
         employeeId: req.user.id,
         page,
@@ -177,7 +180,7 @@ export class MobileController {
       }
 
       const body = deviceTokenSchema.parse(req.body);
-      
+
       await this.employeeRepository.update(req.user.id, {
         fcmToken: body.fcmToken,
       });
@@ -186,6 +189,32 @@ export class MobileController {
         success: true,
         message: 'Device token berhasil diperbarui',
         data: null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getTodaySchedule = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user || req.user.role !== 'EMPLOYEE') {
+        throw new UnauthorizedError('Akses ditolak');
+      }
+
+      const today = new Date();
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const currentDay = days[today.getDay()];
+
+      const schedule = await this.scheduleService.getScheduleByDay(currentDay);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Jadwal hari ini berhasil diambil',
+        data: schedule,
       });
     } catch (error) {
       next(error);
