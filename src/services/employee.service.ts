@@ -12,6 +12,7 @@ import { MAX_PHOTOS } from '../lib/upload/upload';
 
 export interface EmployeeDTO {
   id: string;
+  employeeId: string;
   name: string;
   email: string | null;
   position: string | null;
@@ -36,6 +37,7 @@ type UpdatePayload = UpdateEmployeeInput & { photos?: string[] };
 function toDTO(employee: Employee): EmployeeDTO {
   return {
     id: employee.id,
+    employeeId: employee.employeeId,
     name: employee.name,
     email: employee.email,
     position: employee.position,

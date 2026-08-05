@@ -15,9 +15,9 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1, 'REDIS_URL wajib diisi'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET minimal 32 karakter'),
   ML_API_KEY: z.string().min(1, 'ML_API_KEY wajib diisi'),
-  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME wajib diisi'),
-  CLOUDINARY_API_KEY: z.string().min(1, 'CLOUDINARY_API_KEY wajib diisi'),
-  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET wajib diisi'),
+  SUPABASE_URL: z.string().min(1, 'SUPABASE_URL wajib diisi'),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY wajib diisi'),
+  SUPABASE_STORAGE_BUCKET: z.string().min(1, 'SUPABASE_STORAGE_BUCKET wajib diisi'),
 });
 
 const parsed = envSchema.safeParse(process.env);

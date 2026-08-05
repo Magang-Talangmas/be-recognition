@@ -7,7 +7,7 @@ import {
 } from '../validators/employee.validator';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { ApiSuccessResponse } from '../interfaces/api-response.interface';
-import { uploadEmployeePhotos } from '../lib/cloudinary';
+import { uploadEmployeePhotos } from '../lib/storage';
 
 function getUploadedFiles(req: Request): Express.Multer.File[] {
   return (req.files as Express.Multer.File[] | undefined) ?? [];
