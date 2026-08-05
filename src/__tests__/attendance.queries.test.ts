@@ -40,6 +40,7 @@ describe('AttendanceService - getAttendanceById & getAttendances', () => {
     service = new AttendanceService(
       mockAttendanceRepository,
       mockEmployeeRepository,
+      {} as any, // mockScheduleRepository
       mockRedis as never,
     );
   });

@@ -44,6 +44,7 @@ model Attendance {
   similarity         Float?                                      // Confidence score ArcFace (0.0–1.0)
   timestamp          DateTime                                    // Waktu deteksi (detected_at dari AI)
   confirmationStatus ConfirmationStatus @default(PENDING)       // PENDING | CONFIRMED | REJECTED
+  isLate             Boolean?           @default(false)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   employee           Employee?          @relation(fields: [employeeId], references: [employeeId])
@@ -96,4 +97,21 @@ enum AttendanceStatus {
   TRACKING_PAUSE
   CHECKED_OUT
   UNKNOWN
+}
+
+model WorkSchedule {
+  id               String   @id @default(cuid())
+  scheduleCode     String   @unique
+  name             String
+  workDays         String[] // ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"]
+  checkInTime      String   // format "HH:mm"
+  checkOutTime     String   // format "HH:mm"
+  breakStartTime   String?  // format "HH:mm"
+  breakEndTime     String?  // format "HH:mm"
+  toleranceMinutes Int      @default(0)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("work_schedules")
 }

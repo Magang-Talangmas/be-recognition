@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
+import { ScheduleRepository } from '../repositories/schedule.repository';
 import { logger } from '../config/logger';
 import { sendPushNotification } from '../lib/firebase';
 import {
@@ -30,6 +31,7 @@ export class AttendanceService {
   constructor(
     private readonly attendanceRepository: AttendanceRepository,
     private readonly employeeRepository: EmployeeRepository,
+    private readonly scheduleRepository: ScheduleRepository,
     private readonly redis: Redis,
   ) { }
 
@@ -108,14 +110,44 @@ export class AttendanceService {
       throw new NotFoundError(`Employee dengan ID ${data.employeeId} tidak ditemukan`);
     }
 
+    let isLate: boolean | undefined = undefined;
+
+    if (data.eventType === 'CHECK_IN') {
+      const daysIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const dayName = daysIndo[targetDate.getDay()];
+
+      const schedule = await this.scheduleRepository.findByDay(dayName).catch((err) => {
+        logger.error('Error fetch schedule for lateness check', err);
+        return null;
+      });
+
+      if (schedule) {
+        // schedule.checkInTime is like "08:00"
+        const [hourStr, minStr] = schedule.checkInTime.split(':');
+        const checkInHour = parseInt(hourStr, 10);
+        const checkInMin = parseInt(minStr, 10);
+
+        // Calculate maximum allowed time
+        const limitDate = new Date(targetDate);
+        limitDate.setHours(checkInHour, checkInMin + schedule.toleranceMinutes, 0, 0);
+
+        // if targetDate is greater than limitDate, then late
+        isLate = targetDate > limitDate;
+      } else {
+        // No schedule found for this day, default to false
+        isLate = false;
+      }
+    }
+
     await this.attendanceRepository.create({
       externalEventId: data.externalEventId,
       employeeId: data.employeeId,
       cameraId: data.cameraId,
       eventType: data.eventType,
       similarity: data.similarity,
-      timestamp: new Date(data.timestamp),
+      timestamp: targetDate,
       confirmationStatus: 'PENDING',
+      isLate,
     });
 
     logger.info('Attendance berhasil disimpan (Status: PENDING)', {

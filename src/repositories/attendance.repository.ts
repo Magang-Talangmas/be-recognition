@@ -21,6 +21,7 @@ export class AttendanceRepository {
         similarity: data.similarity,
         timestamp: data.timestamp,
         confirmationStatus: (data.confirmationStatus ?? 'PENDING') as any,
+        isLate: data.isLate,
       },
     });
   }

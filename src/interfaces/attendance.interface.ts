@@ -19,6 +19,7 @@ export interface AttendanceCreateInput {
   similarity?: number;
   timestamp: Date;
   confirmationStatus?: ConfirmationStatus;
+  isLate?: boolean;
 }
 
 export interface AttendanceRecord {
@@ -30,6 +31,7 @@ export interface AttendanceRecord {
   similarity: number | null;
   timestamp: Date;
   confirmationStatus: ConfirmationStatus;
+  isLate: boolean | null;
   createdAt: Date;
   updatedAt: Date;
 }

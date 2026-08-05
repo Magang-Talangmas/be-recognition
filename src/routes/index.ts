@@ -7,12 +7,14 @@ import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { DashboardRepository } from '../repositories/dashboard.repository';
+import { ScheduleRepository } from '../repositories/schedule.repository';
 
 // Services
 import { AttendanceService } from '../services/attendance.service';
 import { EmployeeService } from '../services/employee.service';
 import { AuthService } from '../services/auth.service';
 import { DashboardService } from '../services/dashboard.service';
+import { ScheduleService } from '../services/schedule.service';
 
 // Controllers
 import { AttendanceController } from '../controllers/attendance.controller';
@@ -20,6 +22,7 @@ import { EmployeeController } from '../controllers/employee.controller';
 import { AuthController } from '../controllers/auth.controller';
 import { DashboardController } from '../controllers/dashboard.controller';
 import { MobileController } from '../controllers/mobile.controller';
+import { ScheduleController } from '../controllers/schedule.controller';
 
 // Route factories
 import { createAttendanceRouter } from './attendance.routes';
@@ -27,6 +30,7 @@ import { createEmployeeRouter } from './employee.routes';
 import { createAuthRouter } from './auth.routes';
 import { createDashboardRouter } from './dashboard.routes';
 import { createMobileRouter } from './mobile.routes';
+import { createScheduleRouter } from './schedule.routes';
 
 export const createRouter = (): Router => {
   const router = Router();
@@ -40,16 +44,19 @@ export const createRouter = (): Router => {
   const employeeRepository = new EmployeeRepository(prisma);
   const userRepository = new UserRepository(prisma);
   const dashboardRepository = new DashboardRepository(prisma);
+  const scheduleRepository = new ScheduleRepository(prisma);
 
   // Services
   const attendanceService = new AttendanceService(
     attendanceRepository,
     employeeRepository,
+    scheduleRepository,
     redis,
   );
   const employeeService = new EmployeeService(employeeRepository);
   const authService = new AuthService(userRepository);
   const dashboardService = new DashboardService(dashboardRepository);
+  const scheduleService = new ScheduleService(scheduleRepository);
 
   // Controllers
   const attendanceController = new AttendanceController(attendanceService);
@@ -57,6 +64,7 @@ export const createRouter = (): Router => {
   const authController = new AuthController(authService);
   const dashboardController = new DashboardController(dashboardService);
   const mobileController = new MobileController(employeeRepository, attendanceService);
+  const scheduleController = new ScheduleController(scheduleService);
 
   // === Mount Routes ===
   router.use('/attendance', createAttendanceRouter(attendanceController));
@@ -64,6 +72,7 @@ export const createRouter = (): Router => {
   router.use('/auth', createAuthRouter(authController));
   router.use('/dashboard', createDashboardRouter(dashboardController));
   router.use('/mobile', createMobileRouter(mobileController));
+  router.use('/schedules', createScheduleRouter(scheduleController));
 
   // Health check
   router.get('/health', (_req: Request, res: Response) => {

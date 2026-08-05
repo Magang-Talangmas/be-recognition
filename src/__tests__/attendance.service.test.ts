@@ -67,6 +67,7 @@ describe('AttendanceService', () => {
     service = new AttendanceService(
       mockAttendanceRepository,
       mockEmployeeRepository,
+      { findByDay: jest.fn().mockResolvedValue(null) } as any, // mockScheduleRepository
       mockRedis as never,
     );
   });
