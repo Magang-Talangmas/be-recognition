@@ -1,0 +1,47 @@
+import { Router } from 'express';
+import { MobileController } from '../controllers/mobile.controller';
+import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
+import { uploadPhotos } from '../lib/upload/upload';
+
+export const createMobileRouter = (
+  mobileController: MobileController,
+): Router => {
+  const router = Router();
+
+  /**
+   * @route   POST /api/v1/mobile/auth/login
+   * @desc    Login untuk employee di aplikasi mobile
+   * @access  Public
+   */
+  router.post('/auth/login', mobileController.login);
+
+  /**
+   * @route   GET /api/v1/mobile/profile
+   * @desc    Mendapatkan profil employee yang login
+   * @access  EMPLOYEE
+   */
+  router.get('/profile', authMiddleware, requireRole('EMPLOYEE'), mobileController.getProfile);
+
+  /**
+   * @route   POST /api/v1/mobile/attendance
+   * @desc    Melakukan absensi via mobile app (Face Scan - Menerima form-data gambar)
+   * @access  EMPLOYEE
+   */
+  router.post('/attendance', authMiddleware, requireRole('EMPLOYEE'), uploadPhotos, mobileController.checkIn);
+
+  /**
+   * @route   PATCH /api/v1/mobile/device-token
+   * @desc    Update FCM Device Token untuk Push Notification
+   * @access  EMPLOYEE
+   */
+  router.patch('/device-token', authMiddleware, requireRole('EMPLOYEE'), mobileController.updateDeviceToken);
+
+  /**
+   * @route   GET /api/v1/mobile/attendance/history
+   * @desc    Mendapatkan riwayat absensi employee yang login
+   * @access  EMPLOYEE
+   */
+  router.get('/attendance/history', authMiddleware, requireRole('EMPLOYEE'), mobileController.getHistory);
+
+  return router;
+};

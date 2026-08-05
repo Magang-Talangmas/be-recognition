@@ -1,7 +1,9 @@
 import Redis from 'ioredis';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
+import { ScheduleRepository } from '../repositories/schedule.repository';
 import { logger } from '../config/logger';
+import { sendPushNotification } from '../lib/firebase';
 import {
   REDIS_ATTENDANCE_TTL,
   buildAttendanceDebounceKey,
@@ -10,9 +12,11 @@ import {
   AttendanceFilter,
   AttendanceWithEmployee,
   ConfirmationStatus,
+  DailyAttendanceResult,
   PaginatedAttendance,
 } from '../interfaces/attendance.interface';
 import { NotFoundError } from '../errors/NotFoundError';
+import { ValidationError } from '../errors/ValidationError';
 
 export interface ProcessAttendanceInput {
   externalEventId?: string;  // event_id dari AI (UUID, opsional)
@@ -27,6 +31,7 @@ export class AttendanceService {
   constructor(
     private readonly attendanceRepository: AttendanceRepository,
     private readonly employeeRepository: EmployeeRepository,
+    private readonly scheduleRepository: ScheduleRepository,
     private readonly redis: Redis,
   ) { }
 
@@ -105,24 +110,65 @@ export class AttendanceService {
       throw new NotFoundError(`Employee dengan ID ${data.employeeId} tidak ditemukan`);
     }
 
+    let isLate: boolean | undefined = undefined;
+
+    if (data.eventType === 'CHECK_IN') {
+      const daysIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const dayName = daysIndo[targetDate.getDay()];
+
+      const schedule = await this.scheduleRepository.findByDay(dayName).catch((err) => {
+        logger.error('Error fetch schedule for lateness check', err);
+        return null;
+      });
+
+      if (schedule) {
+        // schedule.checkInTime is like "08:00"
+        const [hourStr, minStr] = schedule.checkInTime.split(':');
+        const checkInHour = parseInt(hourStr, 10);
+        const checkInMin = parseInt(minStr, 10);
+
+        // Calculate maximum allowed time
+        const limitDate = new Date(targetDate);
+        limitDate.setHours(checkInHour, checkInMin + schedule.toleranceMinutes, 0, 0);
+
+        // if targetDate is greater than limitDate, then late
+        isLate = targetDate > limitDate;
+      } else {
+        // No schedule found for this day, default to false
+        isLate = false;
+      }
+    }
+
     await this.attendanceRepository.create({
       externalEventId: data.externalEventId,
       employeeId: data.employeeId,
       cameraId: data.cameraId,
       eventType: data.eventType,
       similarity: data.similarity,
-      timestamp: new Date(data.timestamp),
+      timestamp: targetDate,
       confirmationStatus: 'PENDING',
+      isLate,
     });
 
     logger.info('Attendance berhasil disimpan (Status: PENDING)', {
-      employeeId: data.employeeId,
-      eventType: data.eventType,
-      similarity: data.similarity,
-      timestamp: data.timestamp,
       cameraId: data.cameraId,
       confirmationStatus: 'PENDING',
     });
+
+    if (data.cameraId !== 'mobile-app' && employee.fcmToken) {
+      sendPushNotification(
+        employee.fcmToken,
+        'Absensi Terdeteksi CCTV',
+        `Sistem mendeteksi kehadiran Anda via kamera ${data.cameraId}`,
+        {
+          intentAction: 'com.example.javatraining.CCTV_CHECK_IN',
+          employeeId: data.employeeId,
+          timestamp: data.timestamp,
+        }
+      ).catch((err: any) => {
+        logger.error('Gagal mengirim background notification ke mobile', err);
+      });
+    }
 
     try {
       await this.redis.set(redisKey, '1', 'EX', REDIS_ATTENDANCE_TTL);
@@ -167,5 +213,35 @@ export class AttendanceService {
 
   async getAttendances(filter: AttendanceFilter): Promise<PaginatedAttendance> {
     return this.attendanceRepository.findMany(filter);
+  }
+
+  // Daftar harian: semua employee (aktif paling atas) dengan status hadir/absen per tanggal.
+  async getDailyAttendance(dateStr?: string): Promise<DailyAttendanceResult> {
+    const date = dateStr ? new Date(dateStr) : new Date();
+    if (isNaN(date.getTime())) {
+      throw new ValidationError('Parameter date tidak valid (format: YYYY-MM-DD)');
+    }
+
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const end = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
+    const items = await this.attendanceRepository.findDailyAttendance(start, end);
+
+    const dateKey = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    const active = items.filter((i) => i.employeeStatus === 'Active');
+
+    return {
+      date: dateKey,
+      items,
+      total: items.length,
+      activeCount: active.length,
+      presentCount: active.filter((i) => i.present).length,
+      absentCount: active.filter((i) => !i.present).length,
+    };
   }
 }

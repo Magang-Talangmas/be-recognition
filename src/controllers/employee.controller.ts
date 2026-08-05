@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { EmployeeService } from '../services/employee.service';
+import { EmployeeService, EmployeeDTO } from '../services/employee.service';
 import {
   createEmployeeSchema,
   updateEmployeeSchema,
@@ -7,7 +7,11 @@ import {
 } from '../validators/employee.validator';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { ApiSuccessResponse } from '../interfaces/api-response.interface';
-import { Employee } from '@prisma/client';
+import { uploadEmployeePhotos } from '../lib/storage';
+
+function getUploadedFiles(req: Request): Express.Multer.File[] {
+  return (req.files as Express.Multer.File[] | undefined) ?? [];
+}
 
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) {}
@@ -19,9 +23,13 @@ export class EmployeeController {
   ): Promise<void> => {
     try {
       const body = createEmployeeSchema.parse(req.body);
-      const employee = await this.employeeService.createEmployee(body);
+      const photos = await uploadEmployeePhotos(getUploadedFiles(req));
+      const employee = await this.employeeService.createEmployee({
+        ...body,
+        photos,
+      });
 
-      const response: ApiSuccessResponse<Employee> = {
+      const response: ApiSuccessResponse<EmployeeDTO> = {
         success: true,
         message: 'Employee berhasil dibuat',
         data: employee,
@@ -40,16 +48,13 @@ export class EmployeeController {
   ): Promise<void> => {
     try {
       const filter = employeeFilterSchema.parse(req.query);
-      const result = await this.employeeService.getEmployees(filter);
+      const data = await this.employeeService.getEmployees(filter);
 
-      const response = {
+      res.status(HTTP_STATUS.OK).json({
         success: true,
         message: 'Berhasil mengambil daftar employee',
-        data: result.data,
-        pagination: result.pagination,
-      };
-
-      res.status(HTTP_STATUS.OK).json(response);
+        data,
+      });
     } catch (error) {
       next(error);
     }
@@ -64,7 +69,7 @@ export class EmployeeController {
       const id = req.params['id'] as string;
       const employee = await this.employeeService.getEmployeeById(id);
 
-      const response: ApiSuccessResponse<Employee> = {
+      const response: ApiSuccessResponse<EmployeeDTO> = {
         success: true,
         message: 'Berhasil mengambil detail employee',
         data: employee,
@@ -84,11 +89,60 @@ export class EmployeeController {
     try {
       const id = req.params['id'] as string;
       const body = updateEmployeeSchema.parse(req.body);
-      const employee = await this.employeeService.updateEmployee(id, body);
+      const newPhotos = getUploadedFiles(req);
+      const photos =
+        newPhotos.length > 0 ? await uploadEmployeePhotos(newPhotos) : undefined;
 
-      const response: ApiSuccessResponse<Employee> = {
+      const employee = await this.employeeService.updateEmployee(id, {
+        ...body,
+        ...(photos && { photos }),
+      });
+
+      const response: ApiSuccessResponse<EmployeeDTO> = {
         success: true,
         message: 'Employee berhasil diperbarui',
+        data: employee,
+      };
+
+      res.status(HTTP_STATUS.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  toggleStatus = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const id = req.params['id'] as string;
+      const employee = await this.employeeService.toggleStatus(id);
+
+      const response: ApiSuccessResponse<EmployeeDTO> = {
+        success: true,
+        message: 'Status employee berhasil diubah',
+        data: employee,
+      };
+
+      res.status(HTTP_STATUS.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  toggleFace = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const id = req.params['id'] as string;
+      const employee = await this.employeeService.toggleFace(id);
+
+      const response: ApiSuccessResponse<EmployeeDTO> = {
+        success: true,
+        message: 'Status wajah employee berhasil diubah',
         data: employee,
       };
 

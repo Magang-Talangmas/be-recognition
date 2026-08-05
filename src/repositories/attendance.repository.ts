@@ -4,6 +4,7 @@ import {
   AttendanceFilter,
   AttendanceWithEmployee,
   ConfirmationStatus,
+  DailyAttendanceItem,
   PaginatedAttendance,
 } from '../interfaces/attendance.interface';
 
@@ -20,6 +21,7 @@ export class AttendanceRepository {
         similarity: data.similarity,
         timestamp: data.timestamp,
         confirmationStatus: (data.confirmationStatus ?? 'PENDING') as any,
+        isLate: data.isLate,
       },
     });
   }
@@ -140,5 +142,53 @@ export class AttendanceRepository {
         totalPages: Math.ceil(total / filter.limit),
       },
     };
+  }
+
+  // Daftar harian: semua employee (aktif paling atas) + status hadir/absen pada tanggal tertentu.
+  async findDailyAttendance(
+    startOfDay: Date,
+    endOfDay: Date,
+  ): Promise<DailyAttendanceItem[]> {
+    const [employees, attendances] = await this.prisma.$transaction([
+      this.prisma.employee.findMany({
+        orderBy: [{ status: 'asc' }, { name: 'asc' }],
+      }),
+      this.prisma.attendance.findMany({
+        where: { timestamp: { gte: startOfDay, lt: endOfDay } },
+        orderBy: { timestamp: 'asc' },
+      }),
+    ]);
+
+    const byEmployee = new Map<string, (typeof attendances)[number][]>();
+    for (const att of attendances) {
+      if (!att.employeeId) continue;
+      const list = byEmployee.get(att.employeeId);
+      if (list) {
+        list.push(att);
+      } else {
+        byEmployee.set(att.employeeId, [att]);
+      }
+    }
+
+    return employees.map((emp) => {
+      const records = byEmployee.get(emp.employeeId) ?? [];
+      const checkIn = records.find((r) => r.eventType === 'CHECK_IN');
+      const checkOut = records.find((r) => r.eventType === 'CHECK_OUT');
+      const checkInConfirmation = checkIn?.confirmationStatus ?? records[0]?.confirmationStatus ?? null;
+
+      return {
+        id: emp.id,
+        employeeId: emp.employeeId,
+        name: emp.name,
+        department: emp.department,
+        position: emp.position,
+        employeeStatus: emp.status === 'Inactive' ? 'Inactive' : 'Active',
+        present: records.length > 0,
+        attendanceCount: records.length,
+        confirmationStatus: (checkInConfirmation ?? null) as ConfirmationStatus | null,
+        checkInAt: checkIn ? checkIn.timestamp.toISOString() : null,
+        checkOutAt: checkOut ? checkOut.timestamp.toISOString() : null,
+      };
+    });
   }
 }

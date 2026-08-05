@@ -4,8 +4,7 @@ import { env } from '../config/env';
 import { logger } from '../config/logger';
 import { UnauthorizedError } from '../errors/UnauthorizedError';
 import { ForbiddenError } from '../errors/ForbiddenError';
-import { JwtPayload } from '../interfaces/auth.interface';
-import { Role } from '@prisma/client';
+import { JwtPayload, AppRole } from '../interfaces/auth.interface';
 
 export const authMiddleware = (
   req: Request,
@@ -49,7 +48,7 @@ export const authMiddleware = (
   }
 };
 
-export const requireRole = (...roles: Role[]) => {
+export const requireRole = (...roles: AppRole[]) => {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
       return next(new UnauthorizedError('Belum terautentikasi'));
