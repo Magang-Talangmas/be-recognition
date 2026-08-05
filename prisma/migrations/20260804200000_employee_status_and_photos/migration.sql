@@ -1,4 +1,5 @@
 -- Convert photos TEXT[] -> JSONB (array of string URL Cloudinary)
+ALTER TABLE "employees" ALTER COLUMN "photos" DROP DEFAULT;
 ALTER TABLE "employees" ALTER COLUMN "photos" TYPE JSONB USING COALESCE(to_jsonb(photos), '[]'::jsonb);
 ALTER TABLE "employees" ALTER COLUMN "photos" SET DEFAULT '[]'::jsonb;
 

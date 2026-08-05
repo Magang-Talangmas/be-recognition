@@ -19,12 +19,14 @@ import { AttendanceController } from '../controllers/attendance.controller';
 import { EmployeeController } from '../controllers/employee.controller';
 import { AuthController } from '../controllers/auth.controller';
 import { DashboardController } from '../controllers/dashboard.controller';
+import { MobileController } from '../controllers/mobile.controller';
 
 // Route factories
 import { createAttendanceRouter } from './attendance.routes';
 import { createEmployeeRouter } from './employee.routes';
 import { createAuthRouter } from './auth.routes';
 import { createDashboardRouter } from './dashboard.routes';
+import { createMobileRouter } from './mobile.routes';
 
 export const createRouter = (): Router => {
   const router = Router();
@@ -54,12 +56,14 @@ export const createRouter = (): Router => {
   const employeeController = new EmployeeController(employeeService);
   const authController = new AuthController(authService);
   const dashboardController = new DashboardController(dashboardService);
+  const mobileController = new MobileController(employeeRepository, attendanceService);
 
   // === Mount Routes ===
   router.use('/attendance', createAttendanceRouter(attendanceController));
   router.use('/employees', createEmployeeRouter(employeeController));
   router.use('/auth', createAuthRouter(authController));
   router.use('/dashboard', createDashboardRouter(dashboardController));
+  router.use('/mobile', createMobileRouter(mobileController));
 
   // Health check
   router.get('/health', (_req: Request, res: Response) => {

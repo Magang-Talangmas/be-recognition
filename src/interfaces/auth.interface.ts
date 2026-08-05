@@ -5,18 +5,20 @@ export interface LoginRequestBody {
   password: string;
 }
 
+export type AppRole = Role | 'EMPLOYEE';
+
 export interface JwtPayload {
   sub: string;
-  email: string;
-  role: Role;
+  email: string | null;
+  role: AppRole;
   iat?: number;
   exp?: number;
 }
 
 export interface AuthenticatedUser {
   id: string;
-  email: string;
-  role: Role;
+  email: string | null;
+  role: AppRole;
 }
 
 export interface LoginResponse {
