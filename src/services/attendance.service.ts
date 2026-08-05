@@ -11,9 +11,11 @@ import {
   AttendanceFilter,
   AttendanceWithEmployee,
   ConfirmationStatus,
+  DailyAttendanceResult,
   PaginatedAttendance,
 } from '../interfaces/attendance.interface';
 import { NotFoundError } from '../errors/NotFoundError';
+import { ValidationError } from '../errors/ValidationError';
 
 export interface ProcessAttendanceInput {
   externalEventId?: string;  // event_id dari AI (UUID, opsional)
@@ -179,5 +181,35 @@ export class AttendanceService {
 
   async getAttendances(filter: AttendanceFilter): Promise<PaginatedAttendance> {
     return this.attendanceRepository.findMany(filter);
+  }
+
+  // Daftar harian: semua employee (aktif paling atas) dengan status hadir/absen per tanggal.
+  async getDailyAttendance(dateStr?: string): Promise<DailyAttendanceResult> {
+    const date = dateStr ? new Date(dateStr) : new Date();
+    if (isNaN(date.getTime())) {
+      throw new ValidationError('Parameter date tidak valid (format: YYYY-MM-DD)');
+    }
+
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const end = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
+    const items = await this.attendanceRepository.findDailyAttendance(start, end);
+
+    const dateKey = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    const active = items.filter((i) => i.employeeStatus === 'Active');
+
+    return {
+      date: dateKey,
+      items,
+      total: items.length,
+      activeCount: active.length,
+      presentCount: active.filter((i) => i.present).length,
+      absentCount: active.filter((i) => !i.present).length,
+    };
   }
 }
