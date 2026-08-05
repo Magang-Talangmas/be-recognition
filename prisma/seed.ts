@@ -164,19 +164,25 @@ async function seed() {
       cameraId: "CAM-01",
       name: "Pintu Masuk",
       location: "Lantai 1 - Lobby",
+      rtspUrl: "rtsp://192.168.1.101:554/stream",
       isOnline: true,
+      enabled: true,
     },
     {
       cameraId: "CAM-02",
       name: "Pintu Keluar",
       location: "Lantai 1 - Lobby",
+      rtspUrl: "rtsp://192.168.1.102:554/stream",
       isOnline: true,
+      enabled: true,
     },
     {
       cameraId: "CAM-03",
       name: "Kantin",
       location: "Lantai 2 - Kantin",
+      rtspUrl: "rtsp://192.168.1.103:554/stream",
       isOnline: false,
+      enabled: false,
     },
   ];
 
@@ -186,7 +192,9 @@ async function seed() {
       update: {
         name: camera.name,
         location: camera.location,
+        rtspUrl: camera.rtspUrl,
         isOnline: camera.isOnline,
+        enabled: camera.enabled,
       },
       create: camera,
     });
