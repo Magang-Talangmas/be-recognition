@@ -2,6 +2,7 @@ import Redis from 'ioredis';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { logger } from '../config/logger';
+import { sendPushNotification } from '../lib/firebase';
 import {
   REDIS_ATTENDANCE_TTL,
   buildAttendanceDebounceKey,
@@ -116,13 +117,24 @@ export class AttendanceService {
     });
 
     logger.info('Attendance berhasil disimpan (Status: PENDING)', {
-      employeeId: data.employeeId,
-      eventType: data.eventType,
-      similarity: data.similarity,
-      timestamp: data.timestamp,
       cameraId: data.cameraId,
       confirmationStatus: 'PENDING',
     });
+
+    if (data.cameraId !== 'mobile-app' && employee.fcmToken) {
+      sendPushNotification(
+        employee.fcmToken,
+        'Absensi Terdeteksi CCTV',
+        `Sistem mendeteksi kehadiran Anda via kamera ${data.cameraId}`,
+        {
+          intentAction: 'com.example.javatraining.CCTV_CHECK_IN',
+          employeeId: data.employeeId,
+          timestamp: data.timestamp,
+        }
+      ).catch((err: any) => {
+        logger.error('Gagal mengirim background notification ke mobile', err);
+      });
+    }
 
     try {
       await this.redis.set(redisKey, '1', 'EX', REDIS_ATTENDANCE_TTL);

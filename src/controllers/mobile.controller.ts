@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { AttendanceService } from '../services/attendance.service';
-import { mobileLoginSchema } from '../validators/mobile.validator';
+import { mobileLoginSchema, deviceTokenSchema } from '../validators/mobile.validator';
 import { env } from '../config/env';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { UnauthorizedError } from '../errors/UnauthorizedError';
@@ -160,6 +160,32 @@ export class MobileController {
         message: 'Riwayat absensi berhasil diambil',
         data: result.data,
         pagination: result.pagination,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateDeviceToken = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user || req.user.role !== 'EMPLOYEE') {
+        throw new UnauthorizedError('Akses ditolak');
+      }
+
+      const body = deviceTokenSchema.parse(req.body);
+      
+      await this.employeeRepository.update(req.user.id, {
+        fcmToken: body.fcmToken,
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Device token berhasil diperbarui',
+        data: null,
       });
     } catch (error) {
       next(error);
