@@ -23,6 +23,7 @@ import { AttendanceController } from '../controllers/attendance.controller';
 import { EmployeeController } from '../controllers/employee.controller';
 import { AuthController } from '../controllers/auth.controller';
 import { DashboardController } from '../controllers/dashboard.controller';
+import { CameraController } from '../controllers/camera.controller';
 import { MobileController } from '../controllers/mobile.controller';
 import { ScheduleController } from '../controllers/schedule.controller';
 import { CctvController } from '../controllers/cctv.controller';
@@ -32,6 +33,7 @@ import { createAttendanceRouter } from './attendance.routes';
 import { createEmployeeRouter } from './employee.routes';
 import { createAuthRouter } from './auth.routes';
 import { createDashboardRouter } from './dashboard.routes';
+import { createCameraRouter } from './camera.routes';
 import { createMobileRouter } from './mobile.routes';
 import { createScheduleRouter } from './schedule.routes';
 import { createCctvRouter } from './cctv.routes';
@@ -43,7 +45,6 @@ export const createRouter = (): Router => {
   const prisma = getPrismaClient();
   const redis = getRedisClient();
 
-  // Repositories (shared dependencies pertama)
   const attendanceRepository = new AttendanceRepository(prisma);
   const employeeRepository = new EmployeeRepository(prisma);
   const userRepository = new UserRepository(prisma);
@@ -51,7 +52,6 @@ export const createRouter = (): Router => {
   const scheduleRepository = new ScheduleRepository(prisma);
   const cctvRepository = new CctvRepository(prisma);
 
-  // Services
   const attendanceService = new AttendanceService(
     attendanceRepository,
     employeeRepository,
@@ -64,25 +64,24 @@ export const createRouter = (): Router => {
   const scheduleService = new ScheduleService(scheduleRepository);
   const cctvService = new CctvService(cctvRepository);
 
-  // Controllers
   const attendanceController = new AttendanceController(attendanceService);
   const employeeController = new EmployeeController(employeeService);
   const authController = new AuthController(authService);
   const dashboardController = new DashboardController(dashboardService);
+  const cameraController = new CameraController();
   const mobileController = new MobileController(employeeRepository, attendanceService);
   const scheduleController = new ScheduleController(scheduleService);
   const cctvController = new CctvController(cctvService);
 
-  // === Mount Routes ===
   router.use('/attendance', createAttendanceRouter(attendanceController));
   router.use('/employees', createEmployeeRouter(employeeController));
   router.use('/auth', createAuthRouter(authController));
   router.use('/dashboard', createDashboardRouter(dashboardController));
+  router.use('/cameras', createCameraRouter(cameraController));
   router.use('/mobile', createMobileRouter(mobileController));
   router.use('/schedules', createScheduleRouter(scheduleController));
   router.use('/cctv', createCctvRouter(cctvController));
 
-  // Health check
   router.get('/health', (_req: Request, res: Response) => {
     res.json({
       success: true,
@@ -92,4 +91,4 @@ export const createRouter = (): Router => {
   });
 
   return router;
-};
+};  
