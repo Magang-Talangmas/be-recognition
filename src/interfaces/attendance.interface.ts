@@ -63,3 +63,26 @@ export interface PaginatedAttendance {
     totalPages: number;
   };
 }
+
+export interface DailyAttendanceItem {
+  id: string;
+  employeeId: string;
+  name: string;
+  department: string | null;
+  position: string | null;
+  employeeStatus: 'Active' | 'Inactive';
+  present: boolean;
+  attendanceCount: number;
+  confirmationStatus: ConfirmationStatus | null;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+}
+
+export interface DailyAttendanceResult {
+  date: string;
+  items: DailyAttendanceItem[];
+  total: number;
+  activeCount: number;
+  presentCount: number;
+  absentCount: number;
+}

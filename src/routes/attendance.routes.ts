@@ -23,6 +23,13 @@ export const createAttendanceRouter = (
   router.get('/', authMiddleware, attendanceController.getAttendances);
 
   /**
+   * @route   GET /api/v1/attendance/daily?date=YYYY-MM-DD
+   * @desc    Daftar kehadiran harian semua employee (aktif paling atas) + status hadir/absen
+   * @access  Web Client / Mobile (JWT)
+   */
+  router.get('/daily', authMiddleware, attendanceController.getDailyAttendance);
+
+  /**
    * @route   GET /api/v1/attendance/:id
    * @desc    Detail attendance berdasarkan ID
    * @access  Web Client / Mobile (JWT)

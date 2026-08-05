@@ -93,6 +93,27 @@ export class AttendanceController {
     }
   };
 
+  getDailyAttendance = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const date = req.query['date'] as string | undefined;
+      const result = await this.attendanceService.getDailyAttendance(date);
+
+      const response = {
+        success: true,
+        message: 'Berhasil mengambil daftar kehadiran harian',
+        data: result,
+      };
+
+      res.status(HTTP_STATUS.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   updateConfirmationStatus = async (
     req: Request,
     res: Response,
