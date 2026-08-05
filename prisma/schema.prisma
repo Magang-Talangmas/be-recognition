@@ -83,7 +83,9 @@ model Camera {
   cameraId  String   @unique
   name      String
   location  String?
+  rtspUrl   String?  @unique
   isOnline  Boolean  @default(true)
+  enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
