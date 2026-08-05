@@ -10,7 +10,7 @@ const mockEmployeeRepository = {
   findByEmail: jest.fn(),
   findMany: jest.fn(),
   update: jest.fn(),
-  softDelete: jest.fn(),
+  delete: jest.fn(),
   toggleStatus: jest.fn(),
   toggleFace: jest.fn(),
 } as unknown as jest.Mocked<EmployeeRepository>;
@@ -231,23 +231,20 @@ describe('EmployeeService', () => {
   });
 
   describe('deleteEmployee', () => {
-    it('harus berhasil soft delete employee jika ditemukan', async () => {
+    it('harus berhasil menghapus employee secara permanen jika ditemukan', async () => {
       (mockEmployeeRepository.findById as jest.Mock).mockResolvedValue(mockEmployee);
-      (mockEmployeeRepository.softDelete as jest.Mock).mockResolvedValue({
-        ...mockEmployee,
-        status: 'Inactive',
-      });
+      (mockEmployeeRepository.delete as jest.Mock).mockResolvedValue(mockEmployee);
 
       await service.deleteEmployee('uuid-1');
 
-      expect(mockEmployeeRepository.softDelete).toHaveBeenCalledWith('uuid-1');
+      expect(mockEmployeeRepository.delete).toHaveBeenCalledWith('uuid-1');
     });
 
     it('harus melempar NotFoundError jika employee tidak ditemukan saat delete', async () => {
       (mockEmployeeRepository.findById as jest.Mock).mockResolvedValue(null);
 
       await expect(service.deleteEmployee('uuid-tidak-ada')).rejects.toThrow(NotFoundError);
-      expect(mockEmployeeRepository.softDelete).not.toHaveBeenCalled();
+      expect(mockEmployeeRepository.delete).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,5 +1,5 @@
-import { PrismaClient, Employee, Prisma } from '@prisma/client';
-import { EmployeeFilterInput } from '../validators/employee.validator';
+import { PrismaClient, Employee, Prisma } from "@prisma/client";
+import { EmployeeFilterInput } from "../validators/employee.validator";
 
 export interface EmployeeListRows {
   items: Employee[];
@@ -34,9 +34,21 @@ export class EmployeeRepository {
       ...(filter.search
         ? {
             OR: [
-              { name: { contains: filter.search, mode: 'insensitive' as const } },
-              { employeeId: { contains: filter.search, mode: 'insensitive' as const } },
-              { email: { contains: filter.search, mode: 'insensitive' as const } },
+              {
+                name: { contains: filter.search, mode: "insensitive" as const },
+              },
+              {
+                employeeId: {
+                  contains: filter.search,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                email: {
+                  contains: filter.search,
+                  mode: "insensitive" as const,
+                },
+              },
             ],
           }
         : {}),
@@ -47,7 +59,7 @@ export class EmployeeRepository {
         where,
         skip,
         take: filter.per_page,
-        orderBy: [{ createdAt: 'desc' }, { name: 'asc' }],
+        orderBy: [{ createdAt: "desc" }, { name: "asc" }],
       }),
       this.prisma.employee.count({ where }),
     ]);
@@ -62,11 +74,8 @@ export class EmployeeRepository {
     return this.prisma.employee.update({ where: { id }, data });
   }
 
-  async softDelete(id: string): Promise<Employee> {
-    return this.prisma.employee.update({
-      where: { id },
-      data: { status: 'Inactive' },
-    });
+  async delete(id: string): Promise<Employee> {
+    return this.prisma.employee.delete({ where: { id } });
   }
 
   async toggleStatus(id: string, status: string): Promise<Employee> {

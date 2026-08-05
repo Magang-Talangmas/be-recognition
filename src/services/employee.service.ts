@@ -146,7 +146,7 @@ export class EmployeeService {
 
   async deleteEmployee(id: string): Promise<void> {
     await this.findOrThrow(id);
-    await this.employeeRepository.softDelete(id);
+    await this.employeeRepository.delete(id);
   }
 
   private async findOrThrow(id: string): Promise<Employee> {
