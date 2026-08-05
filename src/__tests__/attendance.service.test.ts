@@ -2,6 +2,7 @@ import { AttendanceService, ProcessAttendanceInput } from '../services/attendanc
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { NotFoundError } from '../errors/NotFoundError';
+import { ValidationError } from '../errors/ValidationError';
 import { REDIS_ATTENDANCE_TTL } from '../constants/redis.constants';
 
 // Mock logger agar tidak mencetak ke console saat test
@@ -20,6 +21,7 @@ const mockAttendanceRepository = {
   findMany: jest.fn(),
   findByExternalEventId: jest.fn(),
   findTodayAttendance: jest.fn(),
+  findDailyAttendance: jest.fn(),
   updateConfirmationStatus: jest.fn(),
 } as unknown as jest.Mocked<AttendanceRepository>;
 
@@ -65,6 +67,7 @@ describe('AttendanceService', () => {
     service = new AttendanceService(
       mockAttendanceRepository,
       mockEmployeeRepository,
+      { findByDay: jest.fn().mockResolvedValue(null) } as any, // mockScheduleRepository
       mockRedis as never,
     );
   });
@@ -253,6 +256,83 @@ describe('AttendanceService', () => {
         service.updateConfirmationStatus('invalid-id', 'CONFIRMED'),
       ).rejects.toThrow(NotFoundError);
       expect(mockAttendanceRepository.updateConfirmationStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getDailyAttendance', () => {
+    const dailyItems = [
+      {
+        id: 'emp-1',
+        employeeId: 'EMP001',
+        name: 'Budi Santoso',
+        department: 'Engineering',
+        position: 'Developer',
+        employeeStatus: 'Active' as const,
+        present: true,
+        attendanceCount: 4,
+        confirmationStatus: 'CONFIRMED' as const,
+        checkInAt: '2026-08-05T01:00:00.000Z',
+        checkOutAt: '2026-08-05T10:00:00.000Z',
+      },
+      {
+        id: 'emp-2',
+        employeeId: 'EMP002',
+        name: 'Budi Test',
+        department: 'Engineering',
+        position: 'QA',
+        employeeStatus: 'Active' as const,
+        present: false,
+        attendanceCount: 0,
+        confirmationStatus: null,
+        checkInAt: null,
+        checkOutAt: null,
+      },
+      {
+        id: 'emp-3',
+        employeeId: 'EMP003',
+        name: 'Siti',
+        department: 'HR',
+        position: 'Manager',
+        employeeStatus: 'Inactive' as const,
+        present: false,
+        attendanceCount: 0,
+        confirmationStatus: null,
+        checkInAt: null,
+        checkOutAt: null,
+      },
+    ];
+
+    it('harus mengembalikan daftar kehadiran harian dengan statistik', async () => {
+      (mockAttendanceRepository.findDailyAttendance as jest.Mock).mockResolvedValue(dailyItems);
+
+      const result = await service.getDailyAttendance('2026-08-05');
+
+      expect(mockAttendanceRepository.findDailyAttendance).toHaveBeenCalledWith(
+        expect.any(Date),
+        expect.any(Date),
+      );
+      expect(result.date).toBe('2026-08-05');
+      expect(result.total).toBe(3);
+      expect(result.activeCount).toBe(2);
+      expect(result.presentCount).toBe(1);
+      expect(result.absentCount).toBe(1);
+      expect(result.items).toHaveLength(3);
+    });
+
+    it('harus memakai tanggal hari ini bila parameter date tidak diberikan', async () => {
+      (mockAttendanceRepository.findDailyAttendance as jest.Mock).mockResolvedValue(dailyItems);
+
+      await service.getDailyAttendance();
+
+      expect(mockAttendanceRepository.findDailyAttendance).toHaveBeenCalledWith(
+        expect.any(Date),
+        expect.any(Date),
+      );
+    });
+
+    it('harus melempar ValidationError untuk tanggal tidak valid', async () => {
+      await expect(service.getDailyAttendance('bukan-tanggal')).rejects.toThrow(ValidationError);
+      expect(mockAttendanceRepository.findDailyAttendance).not.toHaveBeenCalled();
     });
   });
 });

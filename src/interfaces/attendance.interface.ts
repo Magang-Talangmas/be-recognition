@@ -19,6 +19,7 @@ export interface AttendanceCreateInput {
   similarity?: number;
   timestamp: Date;
   confirmationStatus?: ConfirmationStatus;
+  isLate?: boolean;
 }
 
 export interface AttendanceRecord {
@@ -30,6 +31,7 @@ export interface AttendanceRecord {
   similarity: number | null;
   timestamp: Date;
   confirmationStatus: ConfirmationStatus;
+  isLate: boolean | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,4 +64,27 @@ export interface PaginatedAttendance {
     limit: number;
     totalPages: number;
   };
+}
+
+export interface DailyAttendanceItem {
+  id: string;
+  employeeId: string;
+  name: string;
+  department: string | null;
+  position: string | null;
+  employeeStatus: 'Active' | 'Inactive';
+  present: boolean;
+  attendanceCount: number;
+  confirmationStatus: ConfirmationStatus | null;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+}
+
+export interface DailyAttendanceResult {
+  date: string;
+  items: DailyAttendanceItem[];
+  total: number;
+  activeCount: number;
+  presentCount: number;
+  absentCount: number;
 }

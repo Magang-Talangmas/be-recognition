@@ -1,40 +1,161 @@
+import bcrypt from 'bcryptjs';
 import { Employee } from '@prisma/client';
-import { EmployeeRepository, PaginatedEmployees } from '../repositories/employee.repository';
-import { CreateEmployeeInput, UpdateEmployeeInput, EmployeeFilterInput } from '../validators/employee.validator';
+import { EmployeeRepository, EmployeeListRows } from '../repositories/employee.repository';
+import {
+  CreateEmployeeInput,
+  UpdateEmployeeInput,
+  EmployeeFilterInput,
+} from '../validators/employee.validator';
 import { ConflictError } from '../errors/ConflictError';
 import { NotFoundError } from '../errors/NotFoundError';
+import { MAX_PHOTOS } from '../lib/upload/upload';
+
+export interface EmployeeDTO {
+  id: string;
+  employeeId: string;
+  name: string;
+  email: string | null;
+  position: string | null;
+  department: string | null;
+  status: 'Active' | 'Inactive';
+  faceRegistered: boolean;
+  joinedAt: string | null;
+  photos: string[];
+}
+
+export interface EmployeeListResult {
+  items: EmployeeDTO[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+type CreatePayload = CreateEmployeeInput & { photos: string[] };
+type UpdatePayload = UpdateEmployeeInput & { photos?: string[] };
+
+function toDTO(employee: Employee): EmployeeDTO {
+  return {
+    id: employee.id,
+    employeeId: employee.employeeId,
+    name: employee.name,
+    email: employee.email,
+    position: employee.position,
+    department: employee.department,
+    status: employee.status === 'Inactive' ? 'Inactive' : 'Active',
+    faceRegistered: employee.faceRegistered,
+    joinedAt: employee.joinedAt ? employee.joinedAt.toISOString() : null,
+    photos: Array.isArray(employee.photos)
+      ? (employee.photos as string[])
+      : [],
+  };
+}
+
+function generateEmployeeId(): string {
+  const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `EMP-${suffix}`;
+}
 
 export class EmployeeService {
   constructor(private readonly employeeRepository: EmployeeRepository) {}
 
-  async createEmployee(data: CreateEmployeeInput): Promise<Employee> {
-    const existing = await this.employeeRepository.findByEmployeeId(data.employeeId);
-    if (existing) {
-      throw new ConflictError(`Employee dengan ID ${data.employeeId} sudah terdaftar`);
+  async createEmployee(data: CreatePayload): Promise<EmployeeDTO> {
+    if (data.email) {
+      const existingEmail = await this.employeeRepository.findByEmail(data.email);
+      if (existingEmail) {
+        throw new ConflictError(`Email ${data.email} sudah terdaftar`);
+      }
     }
 
-    return this.employeeRepository.create(data);
+    const employee = await this.employeeRepository.create({
+      employeeId: generateEmployeeId(),
+      name: data.name,
+      email: data.email,
+      password: data.password ? await bcrypt.hash(data.password, 12) : undefined,
+      position: data.position,
+      department: data.department,
+      status: data.status ?? 'Active',
+      joinedAt: data.joinedAt,
+      faceRegistered: data.photos.length >= MAX_PHOTOS,
+      photos: data.photos,
+    });
+
+    return toDTO(employee);
   }
 
-  async getEmployeeById(id: string): Promise<Employee> {
-    const employee = await this.employeeRepository.findById(id);
-    if (!employee) {
-      throw new NotFoundError(`Employee dengan ID ${id} tidak ditemukan`);
+  async getEmployeeById(id: string): Promise<EmployeeDTO> {
+    const employee = await this.findOrThrow(id);
+    return toDTO(employee);
+  }
+
+  async getEmployees(filter: EmployeeFilterInput): Promise<EmployeeListResult> {
+    const result: EmployeeListRows = await this.employeeRepository.findMany(filter);
+
+    return {
+      items: result.items.map(toDTO),
+      total: result.total,
+      page: filter.page,
+      per_page: filter.per_page,
+      total_pages: Math.ceil(result.total / filter.per_page),
+    };
+  }
+
+  async updateEmployee(id: string, data: UpdatePayload): Promise<EmployeeDTO> {
+    const existing = await this.findOrThrow(id);
+
+    if (data.email && data.email !== existing.email) {
+      const existingEmail = await this.employeeRepository.findByEmail(data.email);
+      if (existingEmail) {
+        throw new ConflictError(`Email ${data.email} sudah terdaftar`);
+      }
     }
-    return employee;
+
+    const photos =
+      data.photos && data.photos.length > 0
+        ? [...(Array.isArray(existing.photos) ? (existing.photos as string[]) : []), ...data.photos]
+        : (Array.isArray(existing.photos) ? (existing.photos as string[]) : []);
+
+    const employee = await this.employeeRepository.update(id, {
+      name: data.name,
+      email: data.email,
+      password: data.password ? await bcrypt.hash(data.password, 12) : undefined,
+      position: data.position,
+      department: data.department,
+      status: data.status,
+      joinedAt: data.joinedAt,
+      faceRegistered: photos.length >= MAX_PHOTOS ? true : existing.faceRegistered,
+      photos,
+    });
+
+    return toDTO(employee);
   }
 
-  async getEmployees(filter: EmployeeFilterInput): Promise<PaginatedEmployees> {
-    return this.employeeRepository.findMany(filter);
+  async toggleStatus(id: string): Promise<EmployeeDTO> {
+    const existing = await this.findOrThrow(id);
+    const next = existing.status === 'Active' ? 'Inactive' : 'Active';
+    const employee = await this.employeeRepository.toggleStatus(id, next);
+    return toDTO(employee);
   }
 
-  async updateEmployee(id: string, data: UpdateEmployeeInput): Promise<Employee> {
-    await this.getEmployeeById(id); // validasi exists
-    return this.employeeRepository.update(id, data);
+  async toggleFace(id: string): Promise<EmployeeDTO> {
+    const existing = await this.findOrThrow(id);
+    const employee = await this.employeeRepository.toggleFace(
+      id,
+      !existing.faceRegistered,
+    );
+    return toDTO(employee);
   }
 
   async deleteEmployee(id: string): Promise<void> {
-    await this.getEmployeeById(id); // validasi exists
-    await this.employeeRepository.softDelete(id);
+    await this.findOrThrow(id);
+    await this.employeeRepository.delete(id);
+  }
+
+  private async findOrThrow(id: string): Promise<Employee> {
+    const employee = await this.employeeRepository.findById(id);
+    if (!employee) {
+      throw new NotFoundError('Employee not found');
+    }
+    return employee;
   }
 }

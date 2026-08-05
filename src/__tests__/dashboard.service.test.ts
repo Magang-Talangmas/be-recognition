@@ -1,15 +1,19 @@
-import { AttendanceStatus } from '@prisma/client';
 import { DashboardService } from '../services/dashboard.service';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 
 const mockDashboardRepository = {
-  countActiveEmployees: jest.fn(),
-  countCameras: jest.fn(),
-  findTodayStatuses: jest.fn(),
-  countUnknownToday: jest.fn(),
+  getSummary: jest.fn(),
   findRecentActivities: jest.fn(),
-  findAllCameras: jest.fn(),
 } as unknown as jest.Mocked<DashboardRepository>;
+
+const mockRawSummary = {
+  totalEmployees: 128,
+  activeEmployees: 120,
+  faceRegistered: 95,
+  presentToday: 12,
+  departmentCount: 5,
+  recentActivity: 156,
+};
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -20,51 +24,48 @@ describe('DashboardService', () => {
   });
 
   describe('getSummary', () => {
-    it('harus menghitung status kehadiran berdasarkan status terakhir per employee', async () => {
-      mockDashboardRepository.countActiveEmployees.mockResolvedValue(128);
-      mockDashboardRepository.countCameras.mockResolvedValue({ online: 14, offline: 2 });
-      mockDashboardRepository.countUnknownToday.mockResolvedValue(12);
-      mockDashboardRepository.findTodayStatuses.mockResolvedValue([
-        { employeeId: 'e1', status: AttendanceStatus.CHECKED_IN },
-        { employeeId: 'e1', status: AttendanceStatus.CHECKED_OUT },
-        { employeeId: 'e2', status: AttendanceStatus.ON_BREAK },
-        { employeeId: 'e3', status: AttendanceStatus.TRACKING_PAUSE },
-        { employeeId: null, status: AttendanceStatus.UNKNOWN },
-      ]);
+    it('harus mengembalikan summary flat yang benar', async () => {
+      mockDashboardRepository.getSummary.mockResolvedValue(mockRawSummary);
 
       const result = await service.getSummary();
+
+      expect(mockDashboardRepository.getSummary).toHaveBeenCalledWith(
+        expect.any(Date),
+        expect.any(Date),
+      );
 
       expect(result).toEqual({
         totalEmployees: 128,
-        checkedIn: 0,
-        onBreak: 1,
-        trackingPause: 1,
-        checkedOut: 1,
-        unknownFace: 12,
-        cctvOnline: 14,
-        cctvOffline: 2,
+        active: 120,
+        inactive: 8,
+        faceRegistered: 95,
+        faceNotRegistered: 33,
+        presentToday: 12,
+        departments: 5,
+        recentActivity: 156,
       });
     });
 
-    it('harus menghitung checkedIn dari status terakhir', async () => {
-      mockDashboardRepository.countActiveEmployees.mockResolvedValue(3);
-      mockDashboardRepository.countCameras.mockResolvedValue({ online: 1, offline: 0 });
-      mockDashboardRepository.countUnknownToday.mockResolvedValue(0);
-      mockDashboardRepository.findTodayStatuses.mockResolvedValue([
-        { employeeId: 'e1', status: AttendanceStatus.CHECKED_IN },
-        { employeeId: 'e2', status: AttendanceStatus.ON_BREAK },
-        { employeeId: 'e2', status: AttendanceStatus.CHECKED_IN },
-      ]);
+    it('harus mengembalikan 0 saat tidak ada data', async () => {
+      mockDashboardRepository.getSummary.mockResolvedValue({
+        totalEmployees: 0,
+        activeEmployees: 0,
+        faceRegistered: 0,
+        presentToday: 0,
+        departmentCount: 0,
+        recentActivity: 0,
+      });
 
       const result = await service.getSummary();
 
-      expect(result.checkedIn).toBe(2);
-      expect(result.onBreak).toBe(0);
+      expect(result.inactive).toBe(0);
+      expect(result.faceNotRegistered).toBe(0);
+      expect(result.presentToday).toBe(0);
     });
   });
 
   describe('getRecentActivity', () => {
-    it('harus mengembalikan aktivitas terbaru dari repository', async () => {
+    it('harus mengembalikan aktivitas terbaru dari repository (limit 20)', async () => {
       const activities = [
         {
           employeeName: 'Andi Pratama',
@@ -77,21 +78,8 @@ describe('DashboardService', () => {
 
       const result = await service.getRecentActivity();
 
-      expect(mockDashboardRepository.findRecentActivities).toHaveBeenCalledWith(10);
+      expect(mockDashboardRepository.findRecentActivities).toHaveBeenCalledWith(20);
       expect(result).toEqual(activities);
-    });
-  });
-
-  describe('getLiveFeed', () => {
-    it('harus mengembalikan daftar kamera dari repository', async () => {
-      const cameras = [
-        { cameraId: 'CAM-01', cameraName: 'Pintu Masuk', location: 'Lantai 1', online: true },
-      ];
-      mockDashboardRepository.findAllCameras.mockResolvedValue(cameras);
-
-      const result = await service.getLiveFeed();
-
-      expect(result).toEqual(cameras);
     });
   });
 });
