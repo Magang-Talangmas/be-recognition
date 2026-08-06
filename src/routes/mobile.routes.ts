@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { MobileController } from '../controllers/mobile.controller';
+import { NotificationController } from '../controllers/notification.controller';
 import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
 import { uploadPhotos } from '../lib/upload/upload';
 
 export const createMobileRouter = (
   mobileController: MobileController,
+  notificationController?: NotificationController,
 ): Router => {
   const router = Router();
 
@@ -49,6 +51,16 @@ export const createMobileRouter = (
    * @access  EMPLOYEE
    */
   router.get('/schedule/today', authMiddleware, requireRole('EMPLOYEE'), mobileController.getTodaySchedule);
+
+  /**
+   * @route   GET /api/v1/mobile/notifications
+   * @desc    Mendapatkan daftar notifikasi employee yang login
+   * @access  EMPLOYEE
+   */
+  if (notificationController) {
+    router.get('/notifications', authMiddleware, requireRole('EMPLOYEE'), notificationController.getNotifications);
+    router.patch('/notifications/:id/read', authMiddleware, requireRole('EMPLOYEE'), notificationController.markAsRead);
+  }
 
   return router;
 };

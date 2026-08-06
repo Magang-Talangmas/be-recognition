@@ -43,7 +43,6 @@ export class AttendanceService {
     private readonly employeeRepository: EmployeeRepository,
     private readonly scheduleRepository: ScheduleRepository,
     private readonly redis: Redis,
-    private readonly liveMonitoringRepository?: LiveMonitoringRepository,
   ) { }
 
   async processAttendance(data: ProcessAttendanceInput): Promise<void> {
@@ -152,7 +151,7 @@ export class AttendanceService {
       }
     }
 
-    await this.attendanceRepository.create({
+    const created = await this.attendanceRepository.create({
       externalEventId: data.externalEventId,
       employeeId: data.employeeId,
       cameraId: data.cameraId,
@@ -167,35 +166,6 @@ export class AttendanceService {
       cameraId: data.cameraId,
       confirmationStatus: 'PENDING',
     });
-
-    if (data.eventType === 'CHECK_IN') {
-      try {
-        const time = dayjs(targetDate).tz('Asia/Jakarta').format('HH:mm:ss');
-        const payload: CheckinEventPayload = {
-          employeeId: data.employeeId,
-          name: employee.name,
-          type: 'CHECK_IN',
-          isLate: isLate ?? false,
-          time,
-        };
-
-        const notification = await this.liveMonitoringRepository?.createNotification({
-          type: 'checkin',
-          title: 'Absensi Masuk',
-          description: `${employee.name} (${data.employeeId}) melakukan check-in${isLate ? ' terlambat' : ''} pukul ${time}.`,
-        });
-
-        liveSseHub.publish('checkin', {
-          ...payload,
-          notificationId: notification?.id ?? null,
-        });
-      } catch (err) {
-        logger.error('Gagal broadcast event checkin ke live monitoring', {
-          error: err instanceof Error ? err.message : 'unknown',
-          employeeId: data.employeeId,
-        });
-      }
-    }
 
     if (data.cameraId !== 'mobile-app' && employee.fcmToken) {
       sendPushNotification(
