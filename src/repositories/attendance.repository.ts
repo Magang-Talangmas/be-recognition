@@ -22,6 +22,7 @@ export class AttendanceRepository {
         timestamp: data.timestamp,
         confirmationStatus: (data.confirmationStatus ?? 'PENDING') as any,
         isLate: data.isLate,
+        photoUrl: data.photoUrl,
       },
     });
   }
@@ -148,14 +149,20 @@ export class AttendanceRepository {
   async findDailyAttendance(
     startOfDay: Date,
     endOfDay: Date,
+    dateKey: string,
   ): Promise<DailyAttendanceItem[]> {
-    const [employees, attendances] = await this.prisma.$transaction([
+    const permissionDate = new Date(`${dateKey}T00:00:00.000Z`);
+
+    const [employees, attendances, permissions] = await this.prisma.$transaction([
       this.prisma.employee.findMany({
         orderBy: [{ status: 'asc' }, { name: 'asc' }],
       }),
       this.prisma.attendance.findMany({
         where: { timestamp: { gte: startOfDay, lt: endOfDay } },
         orderBy: { timestamp: 'asc' },
+      }),
+      this.prisma.attendancePermission.findMany({
+        where: { date: permissionDate },
       }),
     ]);
 
@@ -170,11 +177,22 @@ export class AttendanceRepository {
       }
     }
 
+    const permissionByEmployee = new Map<
+      string,
+      (typeof permissions)[number]
+    >();
+    for (const perm of permissions) {
+      if (!permissionByEmployee.has(perm.employeeId)) {
+        permissionByEmployee.set(perm.employeeId, perm);
+      }
+    }
+
     return employees.map((emp) => {
       const records = byEmployee.get(emp.employeeId) ?? [];
       const checkIn = records.find((r) => r.eventType === 'CHECK_IN');
       const checkOut = records.find((r) => r.eventType === 'CHECK_OUT');
       const checkInConfirmation = checkIn?.confirmationStatus ?? records[0]?.confirmationStatus ?? null;
+      const permission = permissionByEmployee.get(emp.employeeId);
 
       return {
         id: emp.id,
@@ -188,6 +206,18 @@ export class AttendanceRepository {
         confirmationStatus: (checkInConfirmation ?? null) as ConfirmationStatus | null,
         checkInAt: checkIn ? checkIn.timestamp.toISOString() : null,
         checkOutAt: checkOut ? checkOut.timestamp.toISOString() : null,
+        photo:
+          checkIn?.photoUrl ??
+          (Array.isArray(emp.photos) && emp.photos.length > 0
+            ? (emp.photos[0] as string)
+            : null),
+        permission: permission
+          ? {
+              id: permission.id,
+              type: permission.type,
+              status: permission.status,
+            }
+          : null,
       };
     });
   }

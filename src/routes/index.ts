@@ -13,6 +13,7 @@ import { ReportRepository } from '../repositories/report.repository';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { SettingsRepository } from '../repositories/settings.repository';
+import { PermissionRepository } from '../repositories/permission.repository';
 
 // Services
 import { AttendanceService } from '../services/attendance.service';
@@ -25,6 +26,7 @@ import { ReportService } from '../services/report.service';
 import { LiveMonitoringService } from '../services/live.service';
 import { NotificationService } from '../services/notification.service';
 import { SettingsService } from '../services/settings.service';
+import { PermissionService } from '../services/permission.service';
 
 // Controllers
 import { AttendanceController } from '../controllers/attendance.controller';
@@ -39,6 +41,7 @@ import { ReportController } from '../controllers/report.controller';
 import { LiveMonitoringController } from '../controllers/live.controller';
 import { NotificationController } from '../controllers/notification.controller';
 import { SettingsController } from '../controllers/settings.controller';
+import { PermissionController } from '../controllers/permission.controller';
 
 // Route factories
 import { createAttendanceRouter } from './attendance.routes';
@@ -53,6 +56,7 @@ import { createReportRouter } from './report.routes';
 import { createLiveRouter } from './live.routes';
 import { createEmployeeDetailRouter } from './employee.routes';
 import { createSettingsRouter } from './settings.routes';
+import { createPermissionRouter } from './permission.routes';
 
 export const createRouter = (): Router => {
   const router = Router();
@@ -71,6 +75,7 @@ export const createRouter = (): Router => {
   const liveMonitoringRepository = new LiveMonitoringRepository(prisma);
   const notificationRepository = new NotificationRepository(prisma);
   const settingsRepository = new SettingsRepository(prisma);
+  const permissionRepository = new PermissionRepository(prisma);
 
   const attendanceService = new AttendanceService(
     attendanceRepository,
@@ -88,6 +93,7 @@ export const createRouter = (): Router => {
   const liveMonitoringService = new LiveMonitoringService(liveMonitoringRepository);
   const notificationService = new NotificationService(notificationRepository);
   const settingsService = new SettingsService(settingsRepository);
+  const permissionService = new PermissionService(permissionRepository, employeeRepository);
 
   const attendanceController = new AttendanceController(attendanceService);
   const employeeController = new EmployeeController(
@@ -104,7 +110,9 @@ export const createRouter = (): Router => {
   const liveMonitoringController = new LiveMonitoringController(liveMonitoringService);
   const notificationController = new NotificationController(notificationService);
   const settingsController = new SettingsController(settingsService);
+  const permissionController = new PermissionController(permissionService);
 
+  router.use('/attendance/permissions', createPermissionRouter(permissionController));
   router.use('/attendance', createAttendanceRouter(attendanceController));
   router.use('/employees', createEmployeeRouter(employeeController));
   router.use('/employee', createEmployeeDetailRouter(employeeController));

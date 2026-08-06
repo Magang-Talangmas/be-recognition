@@ -47,6 +47,7 @@ model Attendance {
   timestamp          DateTime                                    // Waktu deteksi (detected_at dari AI)
   confirmationStatus ConfirmationStatus @default(PENDING)       // PENDING | CONFIRMED | REJECTED
   isLate             Boolean?           @default(false)
+  photoUrl           String? // URL foto bukti check-in (mobile app)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   employee           Employee?          @relation(fields: [employeeId], references: [employeeId])
@@ -164,5 +165,22 @@ model Settings {
   updatedAt           DateTime @updatedAt
 
   @@map("settings")
+}
+
+model AttendancePermission {
+  id         String   @id @default(cuid())
+  employeeId String // denormalized "EMP-xxx"
+  date       DateTime @db.Date
+  type       String // Sakit | Izin | Cuti | Lainnya
+  reason     String
+  photoUrl   String? // URL bukti foto di Supabase Storage
+  status     String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+  @@map("attendance_permissions")
 }
 

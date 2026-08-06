@@ -7,8 +7,10 @@ import { mobileLoginSchema, deviceTokenSchema } from '../validators/mobile.valid
 import { env } from '../config/env';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { UnauthorizedError } from '../errors/UnauthorizedError';
+import { ValidationError } from '../errors/ValidationError';
 import { logger } from '../config/logger';
 import { JwtPayload } from '../interfaces/auth.interface';
+import { uploadCheckinPhoto } from '../lib/storage';
 
 const JWT_EXPIRY = '24h';
 
@@ -120,6 +122,12 @@ export class MobileController {
 
       const eventType = req.body.eventType || 'CHECK_IN';
 
+      const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+      if (files.length === 0) {
+        throw new ValidationError('Foto selfie wajib diupload saat check-in');
+      }
+      const photoUrl = await uploadCheckinPhoto(files[0], req.user.id);
+
       await this.attendanceService.processAttendance({
         externalEventId: `mobile-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         employeeId: req.user.id,
@@ -127,6 +135,7 @@ export class MobileController {
         eventType: eventType,
         similarity: undefined,
         timestamp: new Date().toISOString(),
+        photoUrl,
       });
 
       res.status(HTTP_STATUS.OK).json({

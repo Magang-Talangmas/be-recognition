@@ -20,6 +20,7 @@ export interface AttendanceCreateInput {
   timestamp: Date;
   confirmationStatus?: ConfirmationStatus;
   isLate?: boolean;
+  photoUrl?: string;
 }
 
 export interface AttendanceRecord {
@@ -32,6 +33,7 @@ export interface AttendanceRecord {
   timestamp: Date;
   confirmationStatus: ConfirmationStatus;
   isLate: boolean | null;
+  photoUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,6 +68,12 @@ export interface PaginatedAttendance {
   };
 }
 
+export interface DailyPermissionInfo {
+  id: string;
+  type: string;
+  status: string;
+}
+
 export interface DailyAttendanceItem {
   id: string;
   employeeId: string;
@@ -78,6 +86,8 @@ export interface DailyAttendanceItem {
   confirmationStatus: ConfirmationStatus | null;
   checkInAt: string | null;
   checkOutAt: string | null;
+  photo: string | null;
+  permission: DailyPermissionInfo | null;
 }
 
 export interface DailyAttendanceResult {

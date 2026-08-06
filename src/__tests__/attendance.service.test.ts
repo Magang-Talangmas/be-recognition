@@ -310,6 +310,7 @@ describe('AttendanceService', () => {
       expect(mockAttendanceRepository.findDailyAttendance).toHaveBeenCalledWith(
         expect.any(Date),
         expect.any(Date),
+        '2026-08-05',
       );
       expect(result.date).toBe('2026-08-05');
       expect(result.total).toBe(3);
@@ -327,6 +328,7 @@ describe('AttendanceService', () => {
       expect(mockAttendanceRepository.findDailyAttendance).toHaveBeenCalledWith(
         expect.any(Date),
         expect.any(Date),
+        expect.any(String),
       );
     });
 

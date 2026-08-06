@@ -35,6 +35,7 @@ export interface ProcessAttendanceInput {
   eventType: string;
   similarity?: number;
   timestamp: string;         // ISO 8601 string (detected_at dari AI)
+  photoUrl?: string;         // URL foto bukti (mobile check-in)
 }
 
 export class AttendanceService {
@@ -161,6 +162,7 @@ export class AttendanceService {
       timestamp: targetDate,
       confirmationStatus: 'PENDING',
       isLate,
+      photoUrl: data.photoUrl,
     });
 
     logger.info('Attendance berhasil disimpan (Status: PENDING)', {
@@ -279,9 +281,13 @@ export class AttendanceService {
     const start = baseDate.startOf('day').toDate();
     const end = baseDate.add(1, 'day').startOf('day').toDate();
 
-    const items = await this.attendanceRepository.findDailyAttendance(start, end);
-
     const dateKey = baseDate.format('YYYY-MM-DD');
+
+    const items = await this.attendanceRepository.findDailyAttendance(
+      start,
+      end,
+      dateKey,
+    );
 
     const active = items.filter((i) => i.employeeStatus === 'Active');
 

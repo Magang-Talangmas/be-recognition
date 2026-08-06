@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import { env } from '../config/env';
 
 const PHOTOS_FOLDER = 'employee_faces';
+const PERMISSIONS_FOLDER = 'permissions';
+const CHECKINS_FOLDER = 'checkins';
 
 let supabase: SupabaseClient | null = null;
 
@@ -51,4 +53,63 @@ export async function uploadEmployeePhotos(
   }
 
   return urls;
+}
+
+/**
+ * Upload bukti foto izin ke Supabase Storage.
+ * Path: permissions/{employeeId}/{date}-{timestamp}-{uuid}.{ext}
+ */
+export async function uploadPermissionPhoto(
+  file: Express.Multer.File,
+  employeeId: string,
+  dateStr: string,
+): Promise<string> {
+  const fileName = `${PERMISSIONS_FOLDER}/${employeeId}/${dateStr}-${Date.now()}-${randomUUID()}.${extensionFor(file.mimetype)}`;
+
+  const { error } = await getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype,
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Upload foto izin ke Supabase gagal: ${error.message}`);
+  }
+
+  const { data } = getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}
+
+/**
+ * Upload foto bukti check-in mobile ke Supabase Storage.
+ * Path: checkins/{employeeId}/{timestamp}-{uuid}.{ext}
+ */
+export async function uploadCheckinPhoto(
+  file: Express.Multer.File,
+  employeeId: string,
+): Promise<string> {
+  const fileName = `${CHECKINS_FOLDER}/${employeeId}/${Date.now()}-${randomUUID()}.${extensionFor(file.mimetype)}`;
+
+  const { error } = await getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype,
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Upload foto check-in ke Supabase gagal: ${error.message}`);
+  }
+
+  const { data } = getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
 }
