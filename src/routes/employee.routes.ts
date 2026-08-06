@@ -63,3 +63,24 @@ export const createEmployeeRouter = (
 
   return router;
 };
+
+/**
+ * Route singular GET /api/v1/employee/:id — detail karyawan sesuai kontrak frontend.
+ * Menerima id (cuid) atau employeeId (EMP-xxx).
+ */
+export const createEmployeeDetailRouter = (
+  employeeController: EmployeeController,
+): Router => {
+  const router = Router();
+
+  router.use(authMiddleware);
+
+  /**
+   * @route   GET /api/v1/employee/:id
+   * @desc    Detail employee (lookup by id atau employeeId)
+   * @access  JWT (ADMIN, VIEWER)
+   */
+  router.get('/:id', employeeController.getEmployeeById);
+
+  return router;
+};

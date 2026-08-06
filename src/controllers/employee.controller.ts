@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { EmployeeService, EmployeeDTO } from '../services/employee.service';
+import { ReportService } from '../services/report.service';
+import { NotFoundError } from '../errors/NotFoundError';
+import { ReportPeriodDetail } from '../interfaces/report.interface';
 import {
   createEmployeeSchema,
   updateEmployeeSchema,
@@ -13,8 +16,13 @@ function getUploadedFiles(req: Request): Express.Multer.File[] {
   return (req.files as Express.Multer.File[] | undefined) ?? [];
 }
 
+const PERIOD_CODE_PATTERN = /^\d{4}-\d{2}(-\d{2})?$/;
+
 export class EmployeeController {
-  constructor(private readonly employeeService: EmployeeService) {}
+  constructor(
+    private readonly employeeService: EmployeeService,
+    private readonly reportService: ReportService,
+  ) {}
 
   createEmployee = async (
     req: Request,
@@ -67,15 +75,36 @@ export class EmployeeController {
   ): Promise<void> => {
     try {
       const id = req.params['id'] as string;
-      const employee = await this.employeeService.getEmployeeById(id);
 
-      const response: ApiSuccessResponse<EmployeeDTO> = {
-        success: true,
-        message: 'Berhasil mengambil detail employee',
-        data: employee,
-      };
+      try {
+        const employee = await this.employeeService.getEmployeeById(id);
 
-      res.status(HTTP_STATUS.OK).json(response);
+        const response: ApiSuccessResponse<EmployeeDTO> = {
+          success: true,
+          message: 'Berhasil mengambil detail employee',
+          data: employee,
+        };
+
+        res.status(HTTP_STATUS.OK).json(response);
+        return;
+      } catch (error) {
+        if (
+          error instanceof NotFoundError &&
+          PERIOD_CODE_PATTERN.test(id)
+        ) {
+          const period = await this.reportService.getPeriodDetail(id);
+
+          const response: ApiSuccessResponse<ReportPeriodDetail> = {
+            success: true,
+            message: 'Detail periode berhasil diambil',
+            data: period,
+          };
+
+          res.status(HTTP_STATUS.OK).json(response);
+          return;
+        }
+        throw error;
+      }
     } catch (error) {
       next(error);
     }
