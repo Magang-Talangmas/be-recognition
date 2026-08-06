@@ -8,7 +8,7 @@ import {
 } from '../validators/cctv.validator';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { ApiSuccessResponse } from '../interfaces/api-response.interface';
-import { CctvDTO } from '../interfaces/cctv.interface';
+import { CctvDTO, CctvSyncResult } from '../interfaces/cctv.interface';
 
 export class CctvController {
   constructor(private readonly cctvService: CctvService) {}
@@ -148,6 +148,26 @@ export class CctvController {
       await this.cctvService.deleteCctv(id);
 
       res.status(HTTP_STATUS.NO_CONTENT).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  syncCctvs = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const data = await this.cctvService.syncFromEngine();
+
+      const response: ApiSuccessResponse<CctvSyncResult> = {
+        success: true,
+        message: 'Sinkronisasi CCTV dengan ML engine berhasil',
+        data,
+      };
+
+      res.status(HTTP_STATUS.OK).json(response);
     } catch (error) {
       next(error);
     }

@@ -20,6 +20,15 @@ export const createCctvRouter = (cctvController: CctvController): Router => {
   router.post('/', authMiddleware, cctvController.createCctv);
 
   /**
+   * @route   POST /api/v1/cctv/sync
+   * @desc    Sinkronisasi otomatis: tarik /status ML engine, lalu
+   *          auto-create/update Camera di DB (isOnline, rtspUrl dari camera_source),
+   *          dan tandai kamera lain offline
+   * @access  Web Client / Mobile (JWT)
+   */
+  router.post('/sync', authMiddleware, cctvController.syncCctvs);
+
+  /**
    * @route   GET /api/v1/cctv/:id
    * @desc    Detail CCTV berdasarkan ID
    * @access  Web Client / Mobile (JWT)
