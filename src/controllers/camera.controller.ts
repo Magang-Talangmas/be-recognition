@@ -21,6 +21,7 @@ export class CameraController {
         'Content-Type': proxyRes.headers['content-type'] || 'multipart/x-mixed-replace; boundary=frame',
         'Cache-Control': 'no-cache, private',
         'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
         Connection: 'close',
       });
 
@@ -55,6 +56,7 @@ export class CameraController {
         'Content-Type': 'image/jpeg',
         'Cache-Control': 'no-cache',
         'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
       });
       proxyRes.pipe(res);
     });

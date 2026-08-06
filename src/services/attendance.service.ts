@@ -9,8 +9,10 @@ import Redis from 'ioredis';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
+import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { logger } from '../config/logger';
 import { sendPushNotification } from '../lib/firebase';
+import { liveSseHub } from '../lib/live/sse-hub';
 import {
   REDIS_ATTENDANCE_TTL,
   buildAttendanceDebounceKey,
@@ -24,6 +26,7 @@ import {
 } from '../interfaces/attendance.interface';
 import { NotFoundError } from '../errors/NotFoundError';
 import { ValidationError } from '../errors/ValidationError';
+import { CheckinEventPayload } from '../interfaces/live.interface';
 
 export interface ProcessAttendanceInput {
   externalEventId?: string;  // event_id dari AI (UUID, opsional)
@@ -40,6 +43,7 @@ export class AttendanceService {
     private readonly employeeRepository: EmployeeRepository,
     private readonly scheduleRepository: ScheduleRepository,
     private readonly redis: Redis,
+    private readonly liveMonitoringRepository?: LiveMonitoringRepository,
   ) { }
 
   async processAttendance(data: ProcessAttendanceInput): Promise<void> {
@@ -163,6 +167,35 @@ export class AttendanceService {
       cameraId: data.cameraId,
       confirmationStatus: 'PENDING',
     });
+
+    if (data.eventType === 'CHECK_IN') {
+      try {
+        const time = dayjs(targetDate).tz('Asia/Jakarta').format('HH:mm:ss');
+        const payload: CheckinEventPayload = {
+          employeeId: data.employeeId,
+          name: employee.name,
+          type: 'CHECK_IN',
+          isLate: isLate ?? false,
+          time,
+        };
+
+        const notification = await this.liveMonitoringRepository?.createNotification({
+          type: 'checkin',
+          title: 'Absensi Masuk',
+          description: `${employee.name} (${data.employeeId}) melakukan check-in${isLate ? ' terlambat' : ''} pukul ${time}.`,
+        });
+
+        liveSseHub.publish('checkin', {
+          ...payload,
+          notificationId: notification?.id ?? null,
+        });
+      } catch (err) {
+        logger.error('Gagal broadcast event checkin ke live monitoring', {
+          error: err instanceof Error ? err.message : 'unknown',
+          employeeId: data.employeeId,
+        });
+      }
+    }
 
     if (data.cameraId !== 'mobile-app' && employee.fcmToken) {
       sendPushNotification(

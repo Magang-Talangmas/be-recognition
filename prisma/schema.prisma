@@ -95,6 +95,22 @@ model Camera {
   @@map("cameras")
 }
 
+model RecognitionEvent {
+  id         String   @id @default(cuid())
+  employeeId String?            // null = Unknown (wajah tidak dikenal)
+  cameraId   String             // CAM-xx (mengikuti pola Attendance.cameraId)
+  confidence Float              // 0-100
+  status     String   @default("Verified") // Verified | Unknown
+  thumbnail  String?
+  createdAt  DateTime @default(now())
+
+  @@index([cameraId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("recognition_events")
+}
+
 enum AttendanceStatus {
   CHECKED_IN
   ON_BREAK
