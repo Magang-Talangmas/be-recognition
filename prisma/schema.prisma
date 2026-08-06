@@ -18,11 +18,13 @@ model Employee {
   department     String?
   status         String       @default("Active")
   faceRegistered Boolean      @default(false)
+  scheduleId     String?
   joinedAt       DateTime?
   photos         Json?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   attendances    Attendance[]
+  schedule       WorkSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
 
   @@index([employeeId])
   @@map("employees")
@@ -116,6 +118,8 @@ model WorkSchedule {
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  employees        Employee[]
 
   @@map("work_schedules")
 }

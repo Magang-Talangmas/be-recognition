@@ -13,16 +13,16 @@ export class EmployeeRepository {
     return this.prisma.employee.create({ data });
   }
 
-  async findById(id: string): Promise<Employee | null> {
-    return this.prisma.employee.findUnique({ where: { id } });
+  async findById(id: string) {
+    return this.prisma.employee.findUnique({ where: { id }, include: { schedule: true } });
   }
 
-  async findByEmployeeId(employeeId: string): Promise<Employee | null> {
-    return this.prisma.employee.findUnique({ where: { employeeId } });
+  async findByEmployeeId(employeeId: string) {
+    return this.prisma.employee.findUnique({ where: { employeeId }, include: { schedule: true } });
   }
 
-  async findByEmail(email: string): Promise<Employee | null> {
-    return this.prisma.employee.findUnique({ where: { email } });
+  async findByEmail(email: string) {
+    return this.prisma.employee.findUnique({ where: { email }, include: { schedule: true } });
   }
 
   async findMany(filter: EmployeeFilterInput): Promise<EmployeeListRows> {

@@ -205,14 +205,19 @@ export class MobileController {
         throw new UnauthorizedError('Akses ditolak');
       }
 
-      const formatter = new Intl.DateTimeFormat('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        weekday: 'long',
-      });
-      const dayName = formatter.format(new Date());
-      const currentDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+      const employee = await this.employeeRepository.findById(req.user.id);
+      let schedule = employee?.schedule || null;
 
-      const schedule = await this.scheduleService.getScheduleByDay(currentDay);
+      if (!schedule) {
+        const formatter = new Intl.DateTimeFormat('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          weekday: 'long',
+        });
+        const dayName = formatter.format(new Date());
+        const currentDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+
+        schedule = await this.scheduleService.getScheduleByDay(currentDay);
+      }
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
