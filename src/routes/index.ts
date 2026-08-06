@@ -12,6 +12,7 @@ import { ScheduleRepository } from '../repositories/schedule.repository';
 import { ReportRepository } from '../repositories/report.repository';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { NotificationRepository } from '../repositories/notification.repository';
+import { SettingsRepository } from '../repositories/settings.repository';
 
 // Services
 import { AttendanceService } from '../services/attendance.service';
@@ -23,6 +24,7 @@ import { CctvService } from '../services/cctv.service';
 import { ReportService } from '../services/report.service';
 import { LiveMonitoringService } from '../services/live.service';
 import { NotificationService } from '../services/notification.service';
+import { SettingsService } from '../services/settings.service';
 
 // Controllers
 import { AttendanceController } from '../controllers/attendance.controller';
@@ -36,6 +38,7 @@ import { CctvController } from '../controllers/cctv.controller';
 import { ReportController } from '../controllers/report.controller';
 import { LiveMonitoringController } from '../controllers/live.controller';
 import { NotificationController } from '../controllers/notification.controller';
+import { SettingsController } from '../controllers/settings.controller';
 
 // Route factories
 import { createAttendanceRouter } from './attendance.routes';
@@ -49,6 +52,7 @@ import { createCctvRouter } from './cctv.routes';
 import { createReportRouter } from './report.routes';
 import { createLiveRouter } from './live.routes';
 import { createEmployeeDetailRouter } from './employee.routes';
+import { createSettingsRouter } from './settings.routes';
 
 export const createRouter = (): Router => {
   const router = Router();
@@ -66,6 +70,7 @@ export const createRouter = (): Router => {
   const reportRepository = new ReportRepository(prisma);
   const liveMonitoringRepository = new LiveMonitoringRepository(prisma);
   const notificationRepository = new NotificationRepository(prisma);
+  const settingsRepository = new SettingsRepository(prisma);
 
   const attendanceService = new AttendanceService(
     attendanceRepository,
@@ -82,6 +87,7 @@ export const createRouter = (): Router => {
   const reportService = new ReportService(reportRepository);
   const liveMonitoringService = new LiveMonitoringService(liveMonitoringRepository);
   const notificationService = new NotificationService(notificationRepository);
+  const settingsService = new SettingsService(settingsRepository);
 
   const attendanceController = new AttendanceController(attendanceService);
   const employeeController = new EmployeeController(
@@ -97,6 +103,7 @@ export const createRouter = (): Router => {
   const reportController = new ReportController(reportService);
   const liveMonitoringController = new LiveMonitoringController(liveMonitoringService);
   const notificationController = new NotificationController(notificationService);
+  const settingsController = new SettingsController(settingsService);
 
   router.use('/attendance', createAttendanceRouter(attendanceController));
   router.use('/employees', createEmployeeRouter(employeeController));
@@ -109,6 +116,7 @@ export const createRouter = (): Router => {
   router.use('/schedules', createScheduleRouter(scheduleController));
   router.use('/cctv', createCctvRouter(cctvController));
   router.use('/live', createLiveRouter(liveMonitoringController));
+  router.use('/settings', createSettingsRouter(settingsController));
 
   router.get('/health', (_req: Request, res: Response) => {
     res.json({

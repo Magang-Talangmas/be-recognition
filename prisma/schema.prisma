@@ -155,3 +155,14 @@ model Notification {
   @@map("notifications")
 }
 
+model Settings {
+  id                  String   @id @default("system")
+  notifUnregistered   Boolean  @default(true)
+  notifCctvOffline    Boolean  @default(true)
+  notifMissingCheckIn Boolean  @default(true)
+  trackPauseAuto      Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+
+  @@map("settings")
+}
+
