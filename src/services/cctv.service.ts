@@ -1,4 +1,5 @@
 import { Camera, Prisma } from '@prisma/client';
+import http from 'http';
 import { CctvRepository, CctvListRows } from '../repositories/cctv.repository';
 import {
   CreateCctvInput,
@@ -7,9 +8,42 @@ import {
 } from '../validators/cctv.validator';
 import { ConflictError } from '../errors/ConflictError';
 import { NotFoundError } from '../errors/NotFoundError';
-import { CctvDTO, CctvListResult } from '../interfaces/cctv.interface';
+import { CctvDTO, CctvListResult, CctvSyncResult } from '../interfaces/cctv.interface';
 
 const MAX_CAMERA_ID_RETRY = 5;
+const ENGINE_TIMEOUT_MS = 5000;
+
+interface EngineStatusPayload {
+  engine_status?: string;
+  camera_source?: string;
+  fps?: number;
+  faces_detected?: number;
+  [key: string]: unknown;
+}
+
+function fetchEngineStatus(
+  baseUrl: string,
+  timeoutMs: number,
+): Promise<EngineStatusPayload | null> {
+  return new Promise((resolve) => {
+    const req = http.get(`${baseUrl}/status`, (proxyRes) => {
+      let body = '';
+      proxyRes.on('data', (chunk) => {
+        body += chunk;
+      });
+      proxyRes.on('end', () => {
+        try {
+          resolve(JSON.parse(body) as EngineStatusPayload);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+
+    req.setTimeout(timeoutMs, () => req.destroy());
+    req.on('error', () => resolve(null));
+  });
+}
 
 function toDTO(camera: Camera): CctvDTO {
   return {
@@ -116,6 +150,89 @@ export class CctvService {
   async deleteCctv(id: string): Promise<void> {
     await this.findOrThrow(id);
     await this.cctvRepository.delete(id);
+  }
+
+  async syncFromEngine(): Promise<CctvSyncResult> {
+    const baseUrl = this.engineBaseUrl();
+    const status = await fetchEngineStatus(baseUrl, ENGINE_TIMEOUT_MS);
+
+    const all = await this.cctvRepository.findMany({ page: 1, per_page: 100 });
+
+    if (!status || typeof status.camera_source !== 'string' || status.camera_source.length === 0) {
+      const markedOffline = await this.setOnlineFlags(
+        all.items.filter((c) => c.isOnline).map((c) => c.id),
+        false,
+      );
+      return {
+        engine_status: 'OFFLINE',
+        camera_source: null,
+        cameraId: null,
+        created: 0,
+        updated: 0,
+        marked_offline: markedOffline,
+      };
+    }
+
+    const rtspUrl = status.camera_source;
+    let created = 0;
+    let updated = 0;
+
+    let camera = await this.cctvRepository.findByRtspUrl(rtspUrl);
+    if (!camera) {
+      camera = await this.cctvRepository.create({
+        cameraId: await this.generateCameraId(),
+        name: this.deriveCameraName(rtspUrl),
+        location: '',
+        rtspUrl,
+        isOnline: true,
+        enabled: true,
+      });
+      created = 1;
+    } else if (!camera.isOnline) {
+      await this.cctvRepository.update(camera.id, { isOnline: true });
+      updated = 1;
+    }
+
+    const offlineIds = all.items
+      .filter((c) => c.id !== camera!.id && c.isOnline)
+      .map((c) => c.id);
+    const markedOffline = await this.setOnlineFlags(offlineIds, false);
+
+    return {
+      engine_status: 'ONLINE',
+      camera_source: rtspUrl,
+      cameraId: camera.cameraId,
+      created,
+      updated,
+      marked_offline: markedOffline,
+    };
+  }
+
+  private async setOnlineFlags(ids: string[], isOnline: boolean): Promise<number> {
+    let count = 0;
+    for (const id of ids) {
+      await this.cctvRepository.update(id, { isOnline });
+      count += 1;
+    }
+    return count;
+  }
+
+  private engineBaseUrl(): string {
+    let base = process.env.AI_STREAM_BASE_URL || 'http://localhost:8088';
+    base = base.replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(base)) {
+      base = `http://${base}`;
+    }
+    return base;
+  }
+
+  private deriveCameraName(rtspUrl: string): string {
+    try {
+      const host = new URL(rtspUrl).hostname;
+      return `Kamera ${host}`;
+    } catch {
+      return 'Kamera ML Engine';
+    }
   }
 
   private async generateCameraId(): Promise<string> {

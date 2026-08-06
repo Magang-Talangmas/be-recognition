@@ -17,3 +17,12 @@ export interface CctvListResult {
   per_page: number;
   total_pages: number;
 }
+
+export interface CctvSyncResult {
+  engine_status: 'ONLINE' | 'OFFLINE';
+  camera_source: string | null;
+  cameraId: string | null;
+  created: number;
+  updated: number;
+  marked_offline: number;
+}
