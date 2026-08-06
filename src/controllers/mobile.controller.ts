@@ -205,9 +205,12 @@ export class MobileController {
         throw new UnauthorizedError('Akses ditolak');
       }
 
-      const today = new Date();
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const currentDay = days[today.getDay()];
+      const formatter = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        weekday: 'long',
+      });
+      const dayName = formatter.format(new Date());
+      const currentDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
 
       const schedule = await this.scheduleService.getScheduleByDay(currentDay);
 

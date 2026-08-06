@@ -1,3 +1,10 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import Redis from 'ioredis';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
@@ -36,6 +43,27 @@ export class AttendanceService {
   ) { }
 
   async processAttendance(data: ProcessAttendanceInput): Promise<void> {
+    const redisKey = buildAttendanceDebounceKey(data.employeeId, data.eventType);
+    let cooldownExists: string | null = null;
+
+    try {
+      cooldownExists = await this.redis.get(redisKey);
+    } catch (redisError) {
+      logger.error('Redis error saat GET cooldown attendance', {
+        redisKey,
+        error: redisError instanceof Error ? redisError.message : 'unknown',
+      });
+    }
+
+    if (cooldownExists !== null) {
+      logger.info('Attendance diabaikan (Redis debounce aktif)', {
+        redisKey,
+        employeeId: data.employeeId,
+        eventType: data.eventType,
+      });
+      return;
+    }
+
     if (data.externalEventId) {
       const existing = await this.attendanceRepository
         .findByExternalEventId(data.externalEventId)
@@ -81,27 +109,6 @@ export class AttendanceService {
       return;
     }
 
-    const redisKey = buildAttendanceDebounceKey(data.employeeId, data.eventType);
-    let cooldownExists: string | null = null;
-
-    try {
-      cooldownExists = await this.redis.get(redisKey);
-    } catch (redisError) {
-      logger.error('Redis error saat GET cooldown attendance', {
-        redisKey,
-        error: redisError instanceof Error ? redisError.message : 'unknown',
-      });
-    }
-
-    if (cooldownExists !== null) {
-      logger.info('Attendance diabaikan (Redis debounce aktif)', {
-        redisKey,
-        employeeId: data.employeeId,
-        eventType: data.eventType,
-      });
-      return;
-    }
-
     const employee = await this.employeeRepository.findByEmployeeId(data.employeeId);
     if (!employee) {
       logger.warn('Attendance diterima untuk employee tidak terdaftar', {
@@ -113,8 +120,10 @@ export class AttendanceService {
     let isLate: boolean | undefined = undefined;
 
     if (data.eventType === 'CHECK_IN') {
-      const daysIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-      const dayName = daysIndo[targetDate.getDay()];
+      const targetDayjs = dayjs(targetDate).tz('Asia/Jakarta');
+      const formatter = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
+      const currentDay = formatter.format(targetDate);
+      const dayName = currentDay.charAt(0).toUpperCase() + currentDay.slice(1);
 
       const schedule = await this.scheduleRepository.findByDay(dayName).catch((err) => {
         logger.error('Error fetch schedule for lateness check', err);
@@ -122,19 +131,19 @@ export class AttendanceService {
       });
 
       if (schedule) {
-        // schedule.checkInTime is like "08:00"
         const [hourStr, minStr] = schedule.checkInTime.split(':');
         const checkInHour = parseInt(hourStr, 10);
         const checkInMin = parseInt(minStr, 10);
 
-        // Calculate maximum allowed time
-        const limitDate = new Date(targetDate);
-        limitDate.setHours(checkInHour, checkInMin + schedule.toleranceMinutes, 0, 0);
+        const limitDayjs = targetDayjs
+          .hour(checkInHour)
+          .minute(checkInMin)
+          .add(schedule.toleranceMinutes, 'minute')
+          .second(0)
+          .millisecond(0);
 
-        // if targetDate is greater than limitDate, then late
-        isLate = targetDate > limitDate;
+        isLate = targetDayjs.isAfter(limitDayjs);
       } else {
-        // No schedule found for this day, default to false
         isLate = false;
       }
     }
@@ -217,21 +226,17 @@ export class AttendanceService {
 
   // Daftar harian: semua employee (aktif paling atas) dengan status hadir/absen per tanggal.
   async getDailyAttendance(dateStr?: string): Promise<DailyAttendanceResult> {
-    const date = dateStr ? new Date(dateStr) : new Date();
-    if (isNaN(date.getTime())) {
+    const baseDate = dateStr ? dayjs(dateStr).tz('Asia/Jakarta') : dayjs().tz('Asia/Jakarta');
+    if (!baseDate.isValid()) {
       throw new ValidationError('Parameter date tidak valid (format: YYYY-MM-DD)');
     }
 
-    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const end = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+    const start = baseDate.startOf('day').toDate();
+    const end = baseDate.add(1, 'day').startOf('day').toDate();
 
     const items = await this.attendanceRepository.findDailyAttendance(start, end);
 
-    const dateKey = [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, '0'),
-      String(date.getDate()).padStart(2, '0'),
-    ].join('-');
+    const dateKey = baseDate.format('YYYY-MM-DD');
 
     const active = items.filter((i) => i.employeeStatus === 'Active');
 
