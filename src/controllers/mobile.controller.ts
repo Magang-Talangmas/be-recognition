@@ -7,6 +7,7 @@ import { mobileLoginSchema, deviceTokenSchema } from '../validators/mobile.valid
 import { env } from '../config/env';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { UnauthorizedError } from '../errors/UnauthorizedError';
+import { NotFoundError } from '../errors/NotFoundError';
 import { ValidationError } from '../errors/ValidationError';
 import { logger } from '../config/logger';
 import { JwtPayload } from '../interfaces/auth.interface';
@@ -86,7 +87,7 @@ export class MobileController {
         throw new UnauthorizedError('Akses ditolak');
       }
 
-      const employee = await this.employeeRepository.findById(req.user.id);
+      const employee = await this.employeeRepository.findByEmployeeId(req.user.id);
       if (!employee) {
         throw new UnauthorizedError('Employee tidak ditemukan');
       }
@@ -123,6 +124,9 @@ export class MobileController {
       const eventType = req.body.eventType || 'CHECK_IN';
 
       const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+      logger.info(
+        `Mobile check-in debug | contentType=${req.headers['content-type'] ?? '-'} | bodyKeys=${Object.keys(req.body ?? {}).join(',')} | files=${files.length} | body=${JSON.stringify(req.body)}`,
+      );
       if (files.length === 0) {
         throw new ValidationError('Foto selfie wajib diupload saat check-in');
       }
@@ -190,7 +194,12 @@ export class MobileController {
 
       const body = deviceTokenSchema.parse(req.body);
 
-      await this.employeeRepository.update(req.user.id, {
+      const employee = await this.employeeRepository.findByEmployeeId(req.user.id);
+      if (!employee) {
+        throw new NotFoundError('Employee tidak ditemukan');
+      }
+
+      await this.employeeRepository.update(employee.id, {
         fcmToken: body.fcmToken,
       });
 
@@ -214,7 +223,7 @@ export class MobileController {
         throw new UnauthorizedError('Akses ditolak');
       }
 
-      const employee = await this.employeeRepository.findById(req.user.id);
+      const employee = await this.employeeRepository.findByEmployeeId(req.user.id);
       let schedule = employee?.schedule || null;
 
       if (!schedule) {

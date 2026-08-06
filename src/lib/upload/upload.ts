@@ -90,6 +90,33 @@ export const uploadPhotos = (
   });
 };
 
+export const uploadCheckinPhotos = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  upload.fields([
+    { name: 'photos', maxCount: MAX_PHOTOS },
+    { name: 'photo', maxCount: 1 },
+  ])(req, res, (err: unknown) => {
+    if (err) {
+      next(normalizeMulterError(err));
+      return;
+    }
+    const files = req.files as
+      | { [fieldname: string]: Express.Multer.File[] }
+      | Express.Multer.File[]
+      | undefined;
+    if (files && !Array.isArray(files)) {
+      req.files = [
+        ...(files['photos'] ?? []),
+        ...(files['photo'] ?? []),
+      ];
+    }
+    next();
+  });
+};
+
 export const uploadPermissionPhoto = (
   req: Request,
   res: Response,

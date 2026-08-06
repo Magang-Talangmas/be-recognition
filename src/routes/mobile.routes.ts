@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { MobileController } from '../controllers/mobile.controller';
 import { NotificationController } from '../controllers/notification.controller';
 import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
-import { uploadPhotos } from '../lib/upload/upload';
+import { uploadCheckinPhotos } from '../lib/upload/upload';
 
 export const createMobileRouter = (
   mobileController: MobileController,
@@ -29,7 +29,7 @@ export const createMobileRouter = (
    * @desc    Melakukan absensi via mobile app (Face Scan - Menerima form-data gambar)
    * @access  EMPLOYEE
    */
-  router.post('/attendance', authMiddleware, requireRole('EMPLOYEE'), uploadPhotos, mobileController.checkIn);
+  router.post('/attendance', authMiddleware, requireRole('EMPLOYEE'), uploadCheckinPhotos, mobileController.checkIn);
 
   /**
    * @route   PATCH /api/v1/mobile/device-token
