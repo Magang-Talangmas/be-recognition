@@ -9,6 +9,7 @@ import Redis from 'ioredis';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
+import { NotificationRepository } from '../repositories/notification.repository';
 import { logger } from '../config/logger';
 import { sendPushNotification } from '../lib/firebase';
 import {
@@ -40,6 +41,7 @@ export class AttendanceService {
     private readonly employeeRepository: EmployeeRepository,
     private readonly scheduleRepository: ScheduleRepository,
     private readonly redis: Redis,
+    private readonly notificationRepository?: NotificationRepository,
   ) { }
 
   async processAttendance(data: ProcessAttendanceInput): Promise<void> {
@@ -148,7 +150,7 @@ export class AttendanceService {
       }
     }
 
-    await this.attendanceRepository.create({
+    const created = await this.attendanceRepository.create({
       externalEventId: data.externalEventId,
       employeeId: data.employeeId,
       cameraId: data.cameraId,
@@ -163,6 +165,24 @@ export class AttendanceService {
       cameraId: data.cameraId,
       confirmationStatus: 'PENDING',
     });
+
+    if (this.notificationRepository && created) {
+      const title = isLate ? 'Peringatan Keterlambatan' : 'Absensi Berhasil';
+      const description = isLate
+        ? `Anda tercatat keterlambatan pada absensi ${data.eventType}`
+        : `Absensi ${data.eventType} Anda telah berhasil dicatat.`;
+      const notifType = isLate ? 'WARNING' : 'INFO';
+
+      this.notificationRepository.create({
+        attendance: { connect: { id: created.id } },
+        type: notifType,
+        title,
+        description,
+        isRead: false,
+      }).catch((err) => {
+        logger.error('Error saat otomatis membuat record notifikasi', err);
+      });
+    }
 
     if (data.cameraId !== 'mobile-app' && employee.fcmToken) {
       sendPushNotification(

@@ -10,6 +10,7 @@ import { DashboardRepository } from '../repositories/dashboard.repository';
 import { CctvRepository } from '../repositories/cctv.repository';
 import { ScheduleRepository } from '../repositories/schedule.repository';
 import { ReportRepository } from '../repositories/report.repository';
+import { NotificationRepository } from '../repositories/notification.repository';
 
 // Services
 import { AttendanceService } from '../services/attendance.service';
@@ -19,6 +20,7 @@ import { DashboardService } from '../services/dashboard.service';
 import { ScheduleService } from '../services/schedule.service';
 import { CctvService } from '../services/cctv.service';
 import { ReportService } from '../services/report.service';
+import { NotificationService } from '../services/notification.service';
 
 // Controllers
 import { AttendanceController } from '../controllers/attendance.controller';
@@ -30,6 +32,7 @@ import { MobileController } from '../controllers/mobile.controller';
 import { ScheduleController } from '../controllers/schedule.controller';
 import { CctvController } from '../controllers/cctv.controller';
 import { ReportController } from '../controllers/report.controller';
+import { NotificationController } from '../controllers/notification.controller';
 
 // Route factories
 import { createAttendanceRouter } from './attendance.routes';
@@ -58,11 +61,14 @@ export const createRouter = (): Router => {
   const cctvRepository = new CctvRepository(prisma);
   const reportRepository = new ReportRepository(prisma);
 
+  const notificationRepository = new NotificationRepository(prisma);
+
   const attendanceService = new AttendanceService(
     attendanceRepository,
     employeeRepository,
     scheduleRepository,
     redis,
+    notificationRepository,
   );
   const employeeService = new EmployeeService(employeeRepository);
   const authService = new AuthService(userRepository);
@@ -70,6 +76,7 @@ export const createRouter = (): Router => {
   const scheduleService = new ScheduleService(scheduleRepository);
   const cctvService = new CctvService(cctvRepository);
   const reportService = new ReportService(reportRepository);
+  const notificationService = new NotificationService(notificationRepository);
 
   const attendanceController = new AttendanceController(attendanceService);
   const employeeController = new EmployeeController(
@@ -83,6 +90,7 @@ export const createRouter = (): Router => {
   const scheduleController = new ScheduleController(scheduleService);
   const cctvController = new CctvController(cctvService);
   const reportController = new ReportController(reportService);
+  const notificationController = new NotificationController(notificationService);
 
   router.use('/attendance', createAttendanceRouter(attendanceController));
   router.use('/employees', createEmployeeRouter(employeeController));
@@ -91,7 +99,7 @@ export const createRouter = (): Router => {
   router.use('/auth', createAuthRouter(authController));
   router.use('/dashboard', createDashboardRouter(dashboardController));
   router.use('/cameras', createCameraRouter(cameraController));
-  router.use('/mobile', createMobileRouter(mobileController));
+  router.use('/mobile', createMobileRouter(mobileController, notificationController));
   router.use('/schedules', createScheduleRouter(scheduleController));
   router.use('/cctv', createCctvRouter(cctvController));
 
