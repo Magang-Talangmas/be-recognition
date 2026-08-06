@@ -1,0 +1,182 @@
+{
+  "info": {
+    "name": "Recognition Attendance API System",
+    "description": "Postman Collection resmi untuk testing API Recognition Backend (Web Admin & Mobile Karyawan)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "mobile_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ml_api_key",
+      "value": "your-ml-api-key-change-in-production",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Mobile Employee Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"budi@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/mobile/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["mobile", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Web Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"adminpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mobile Endpoints",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mobile/profile",
+              "host": ["{{base_url}}"],
+              "path": ["mobile", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get Today Schedule",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mobile/schedule/today",
+              "host": ["{{base_url}}"],
+              "path": ["mobile", "schedule", "today"]
+            }
+          }
+        },
+        {
+          "name": "Get Attendance History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mobile/attendance/history?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["mobile", "attendance", "history"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mobile/notifications?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["mobile", "notifications"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/mobile/notifications/:id/read",
+              "host": ["{{base_url}}"],
+              "path": ["mobile", "notifications", ":id", "read"],
+              "variable": [
+                { "key": "id", "value": "NOTIFICATION_ID_HERE" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI / CCTV Ingestion",
+      "item": [
+        {
+          "name": "Post AI Attendance Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{ml_api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"EMP001\",\n  \"camera_id\": \"cctv-pintu-depan\",\n  \"event_type\": \"CHECK_IN\",\n  \"detected_at\": \"2026-08-06T08:05:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/attendance",
+              "host": ["{{base_url}}"],
+              "path": ["attendance"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
