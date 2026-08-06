@@ -84,7 +84,7 @@ export class EmployeeService {
   }
 
   async getEmployeeById(id: string): Promise<EmployeeDTO> {
-    const employee = await this.findOrThrow(id);
+    const employee = await this.findByUuidOrEmployeeId(id);
     return toDTO(employee);
   }
 
@@ -155,6 +155,17 @@ export class EmployeeService {
     const employee = await this.employeeRepository.findById(id);
     if (!employee) {
       throw new NotFoundError('Employee not found');
+    }
+    return employee;
+  }
+
+  private async findByUuidOrEmployeeId(identifier: string): Promise<Employee> {
+    const employee =
+      (await this.employeeRepository.findById(identifier)) ??
+      (await this.employeeRepository.findByEmployeeId(identifier));
+
+    if (!employee) {
+      throw new NotFoundError('Karyawan tidak ditemukan');
     }
     return employee;
   }
