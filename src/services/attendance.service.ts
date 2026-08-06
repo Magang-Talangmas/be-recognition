@@ -168,21 +168,33 @@ export class AttendanceService {
       confirmationStatus: 'PENDING',
     });
 
-    if (data.eventType === 'CHECK_IN') {
+    if (data.eventType === 'CHECK_IN' || data.eventType === 'CHECK_OUT') {
       try {
         const time = dayjs(targetDate).tz('Asia/Jakarta').format('HH:mm:ss');
+        const lateFlag = data.eventType === 'CHECK_IN' ? (isLate ?? false) : false;
+        const title =
+          data.eventType === 'CHECK_OUT'
+            ? 'Check Out'
+            : lateFlag
+              ? 'Terlambat Masuk'
+              : 'Check In';
+        const description =
+          data.eventType === 'CHECK_OUT'
+            ? `${employee.name} (${data.employeeId}) check-out pukul ${time}.`
+            : `${employee.name} (${data.employeeId}) check-in${lateFlag ? ' terlambat' : ''} pukul ${time}.`;
+
         const payload: CheckinEventPayload = {
           employeeId: data.employeeId,
           name: employee.name,
-          type: 'CHECK_IN',
-          isLate: isLate ?? false,
+          type: data.eventType as 'CHECK_IN' | 'CHECK_OUT',
+          isLate: lateFlag,
           time,
         };
 
         const notification = await this.liveMonitoringRepository?.createNotification({
           type: 'checkin',
-          title: 'Absensi Masuk',
-          description: `${employee.name} (${data.employeeId}) melakukan check-in${isLate ? ' terlambat' : ''} pukul ${time}.`,
+          title,
+          description,
         });
 
         liveSseHub.publish('checkin', {
@@ -190,7 +202,7 @@ export class AttendanceService {
           notificationId: notification?.id ?? null,
         });
       } catch (err) {
-        logger.error('Gagal broadcast event checkin ke live monitoring', {
+        logger.error('Gagal broadcast event checkin/checkout ke live monitoring', {
           error: err instanceof Error ? err.message : 'unknown',
           employeeId: data.employeeId,
         });

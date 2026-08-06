@@ -77,8 +77,14 @@ export interface RecordRecognitionInput {
 export interface CheckinEventPayload {
   employeeId: string;
   name: string;
-  type: 'CHECK_IN';
+  type: 'CHECK_IN' | 'CHECK_OUT';
   isLate: boolean;
   time: string; // HH:mm:ss
   notificationId?: string | null;
+}
+
+/** Input untuk membuat notifikasi system. */
+export interface SystemNotificationInput {
+  title: string;
+  description: string;
 }

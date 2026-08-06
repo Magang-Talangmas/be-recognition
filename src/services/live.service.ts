@@ -22,6 +22,7 @@ import {
   RecognitionFilter,
   RecognitionStatus,
   RecordRecognitionInput,
+  SystemNotificationInput,
 } from '../interfaces/live.interface';
 
 const RECOGNITION_CONFIDENCE_THRESHOLD = 60;
@@ -151,13 +152,13 @@ export class LiveMonitoringService {
       status === 'Verified'
         ? {
             type: 'recognition',
-            title: 'Wajah Terverifikasi',
-            description: `${employeeName ?? 'Karyawan'} terverifikasi di ${input.cameraId} (confidence ${input.confidence.toFixed(1)}%).`,
+            title: 'Pengenalan Berhasil',
+            description: `${employeeName ?? 'Karyawan'} diverifikasi di ${cameraName} (confidence ${input.confidence.toFixed(1)}%).`,
           }
         : {
             type: 'unknown',
             title: 'Wajah Tidak Dikenal',
-            description: `Wajah unknown terdeteksi di ${input.cameraId} (confidence ${input.confidence.toFixed(1)}%).`,
+            description: `Wajah unknown terdeteksi di ${cameraName} (confidence ${input.confidence.toFixed(1)}%).`,
           },
     );
 
@@ -180,7 +181,7 @@ export class LiveMonitoringService {
     if (online) {
       const notification = await this.safeCreateNotification({
         type: 'cctv',
-        title: 'Kamera Online',
+        title: 'CCTV Kembali Online',
         description: `Kamera ${camera.name} (${cameraId}) kembali online.`,
       });
       liveSseHub.publish('camera_online', {
@@ -191,7 +192,7 @@ export class LiveMonitoringService {
     } else {
       const notification = await this.safeCreateNotification({
         type: 'cctv',
-        title: 'Kamera Offline',
+        title: 'CCTV Offline',
         description: `Kamera ${camera.name} (${cameraId}) terputus.`,
       });
       liveSseHub.publish('camera_offline', {
@@ -204,18 +205,47 @@ export class LiveMonitoringService {
   }
 
   /**
-   * Broadcast event check-in dari proses absensi + simpan notifikasi.
+   * Broadcast event check-in/check-out dari proses absensi + simpan notifikasi.
    */
   async publishCheckin(payload: CheckinEventPayload): Promise<void> {
+    const isLate = payload.type === 'CHECK_IN' && payload.isLate;
+    const title =
+      payload.type === 'CHECK_OUT'
+        ? 'Check Out'
+        : isLate
+          ? 'Terlambat Masuk'
+          : 'Check In';
+    const description =
+      payload.type === 'CHECK_OUT'
+        ? `${payload.name} (${payload.employeeId}) check-out pukul ${payload.time}.`
+        : `${payload.name} (${payload.employeeId}) check-in${isLate ? ' terlambat' : ''} pukul ${payload.time}.`;
+
     const notification = await this.safeCreateNotification({
       type: 'checkin',
-      title: 'Absensi Masuk',
-      description: `${payload.name} (${payload.employeeId}) melakukan check-in${payload.isLate ? ' terlambat' : ''} pukul ${payload.time}.`,
+      title,
+      description,
     });
     liveSseHub.publish('checkin', {
       ...payload,
       notificationId: notification?.id ?? null,
     });
+  }
+
+  /**
+   * Buat notifikasi system + broadcast via SSE.
+   */
+  async publishSystem(input: SystemNotificationInput): Promise<LiveNotificationDTO | null> {
+    const notification = await this.safeCreateNotification({
+      type: 'system',
+      title: input.title,
+      description: input.description,
+    });
+    if (!notification) {
+      return null;
+    }
+    const dto = toNotificationDTO(notification);
+    liveSseHub.publish('system', dto);
+    return dto;
   }
 
   private resolveStatus(input: RecordRecognitionInput): RecognitionStatus {

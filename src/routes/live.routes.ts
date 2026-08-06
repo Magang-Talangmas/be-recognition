@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { LiveMonitoringController } from '../controllers/live.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
 import { sseAuthMiddleware } from '../middlewares/sseAuth.middleware';
 import { apiKeyMiddleware } from '../middlewares/apiKey.middleware';
+import { Role } from '@prisma/client';
 
 export const createLiveRouter = (
   liveMonitoringController: LiveMonitoringController,
@@ -50,6 +51,18 @@ export const createLiveRouter = (
    * @access  Web Client (JWT via query param, EventSource tidak bisa set header)
    */
   router.get('/events', sseAuthMiddleware, liveMonitoringController.handleEvents);
+
+  /**
+   * @route   POST /api/v1/live/notifications/system
+   * @desc    Kirim notifikasi system + broadcast SSE (info pembaruan sistem)
+   * @access  ADMIN
+   */
+  router.post(
+    '/notifications/system',
+    authMiddleware,
+    requireRole(Role.ADMIN),
+    liveMonitoringController.createSystemNotification,
+  );
 
   /**
    * @route   POST /api/v1/live/recognition-events

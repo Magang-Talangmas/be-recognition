@@ -6,6 +6,7 @@ import {
   parseAsUnprocessable,
   recognitionQuerySchema,
   recordRecognitionSchema,
+  systemNotificationSchema,
 } from '../validators/live.validator';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { ApiSuccessResponse } from '../interfaces/api-response.interface';
@@ -136,6 +137,28 @@ export class LiveMonitoringController {
       const response: ApiSuccessResponse<LiveRecognitionDTO> = {
         success: true,
         message: 'Hasil pengenalan tersimpan',
+        data,
+      };
+
+      res.status(HTTP_STATUS.CREATED).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /** Kirim notifikasi system ke semua client (ADMIN). */
+  createSystemNotification = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const body = parseAsUnprocessable(systemNotificationSchema, req.body);
+      const data = await this.liveMonitoringService.publishSystem(body);
+
+      const response: ApiSuccessResponse<LiveNotificationDTO | null> = {
+        success: true,
+        message: 'Notifikasi system terkirim',
         data,
       };
 

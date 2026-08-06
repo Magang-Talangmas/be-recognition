@@ -253,12 +253,19 @@ describe('LiveMonitoringService', () => {
 
       await service.recordCameraStatus('CAM-01', true);
 
-      expect(liveSseHub.publish).toHaveBeenCalledWith('camera_online', {
-        cameraId: 'CAM-01',
-        name: 'Pintu Masuk',
-      });
+      expect(liveSseHub.publish).toHaveBeenCalledWith(
+        'camera_online',
+        expect.objectContaining({
+          cameraId: 'CAM-01',
+          name: 'Pintu Masuk',
+          notificationId: 'notif-1',
+        }),
+      );
       expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'cctv' }),
+        expect.objectContaining({
+          type: 'cctv',
+          title: 'CCTV Kembali Online',
+        }),
       );
     });
 
@@ -271,6 +278,12 @@ describe('LiveMonitoringService', () => {
         'camera_offline',
         expect.objectContaining({ cameraId: 'CAM-01', since: expect.any(String) }),
       );
+      expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'cctv',
+          title: 'CCTV Offline',
+        }),
+      );
     });
 
     it('tidak melakukan apa-apa jika kamera tidak ditemukan', async () => {
@@ -280,6 +293,105 @@ describe('LiveMonitoringService', () => {
 
       expect(liveSseHub.publish).not.toHaveBeenCalled();
       expect(mockLiveRepository.createNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('publishCheckin', () => {
+    it('Check In: notifikasi type checkin + publish event checkin', async () => {
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
+
+      await service.publishCheckin({
+        employeeId: 'EMP-001',
+        name: 'Andi Pratama',
+        type: 'CHECK_IN',
+        isLate: false,
+        time: '08:01:00',
+      });
+
+      expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'checkin', title: 'Check In' }),
+      );
+      expect(liveSseHub.publish).toHaveBeenCalledWith(
+        'checkin',
+        expect.objectContaining({ type: 'CHECK_IN', notificationId: 'notif-1' }),
+      );
+    });
+
+    it('Terlambat Masuk: title Terlambat Masuk saat isLate true', async () => {
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
+
+      await service.publishCheckin({
+        employeeId: 'EMP-001',
+        name: 'Andi Pratama',
+        type: 'CHECK_IN',
+        isLate: true,
+        time: '09:15:00',
+      });
+
+      expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Terlambat Masuk' }),
+      );
+    });
+
+    it('Check Out: title Check Out untuk tipe CHECK_OUT', async () => {
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
+
+      await service.publishCheckin({
+        employeeId: 'EMP-001',
+        name: 'Andi Pratama',
+        type: 'CHECK_OUT',
+        isLate: false,
+        time: '17:05:00',
+      });
+
+      expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'checkin', title: 'Check Out' }),
+      );
+      expect(liveSseHub.publish).toHaveBeenCalledWith(
+        'checkin',
+        expect.objectContaining({ type: 'CHECK_OUT' }),
+      );
+    });
+  });
+
+  describe('publishSystem', () => {
+    it('membuat notifikasi type system + publish event system', async () => {
+      const systemNotification = {
+        ...mockNotification,
+        id: 'notif-sys-1',
+        type: 'system',
+        title: 'Pembaruan Sistem',
+        description: 'Versi baru 1.2.0 telah tersedia.',
+      };
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(systemNotification);
+
+      const result = await service.publishSystem({
+        title: 'Pembaruan Sistem',
+        description: 'Versi baru 1.2.0 telah tersedia.',
+      });
+
+      expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'system' }),
+      );
+      expect(liveSseHub.publish).toHaveBeenCalledWith(
+        'system',
+        expect.objectContaining({ id: 'notif-sys-1', type: 'system' }),
+      );
+      expect(result).toEqual(expect.objectContaining({ id: 'notif-sys-1' }));
+    });
+
+    it('mengembalikan null jika penyimpanan gagal', async () => {
+      (mockLiveRepository.createNotification as jest.Mock).mockRejectedValue(
+        new Error('db down'),
+      );
+
+      const result = await service.publishSystem({
+        title: 'Pembaruan Sistem',
+        description: 'Gagal disimpan.',
+      });
+
+      expect(result).toBeNull();
+      expect(liveSseHub.publish).not.toHaveBeenCalled();
     });
   });
 });

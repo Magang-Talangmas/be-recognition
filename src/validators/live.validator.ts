@@ -35,6 +35,11 @@ export const recordRecognitionSchema = z.object({
   timestamp: optionalString(z.string()),
 });
 
+export const systemNotificationSchema = z.object({
+  title: z.string().trim().min(1, 'title wajib diisi'),
+  description: z.string().trim().min(1, 'description wajib diisi'),
+});
+
 export type RecognitionQueryInput = z.infer<typeof recognitionQuerySchema>;
 export type NotificationQueryInput = z.infer<typeof notificationQuerySchema>;
 export type RecordRecognitionInput = z.infer<typeof recordRecognitionSchema>;

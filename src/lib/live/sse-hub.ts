@@ -5,7 +5,8 @@ export type LiveEventType =
   | 'unknown'
   | 'camera_offline'
   | 'camera_online'
-  | 'checkin';
+  | 'checkin'
+  | 'system';
 
 /**
  * Hub in-memory untuk broadcast event realtime ke semua client yang
