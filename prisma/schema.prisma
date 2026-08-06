@@ -49,6 +49,8 @@ model Attendance {
   updatedAt          DateTime           @updatedAt
   employee           Employee?          @relation(fields: [employeeId], references: [employeeId])
 
+  notifications      Notification[]
+
   @@index([employeeId])
   @@index([cameraId])
   @@index([timestamp])
@@ -117,3 +119,19 @@ model WorkSchedule {
 
   @@map("work_schedules")
 }
+
+model Notification {
+  id           String      @id @default(cuid())
+  attendanceId String?
+  type         String      @default("INFO")
+  title        String
+  description  String
+  isRead       Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@index([attendanceId])
+  @@map("notifications")
+}
+
