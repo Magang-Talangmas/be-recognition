@@ -101,47 +101,64 @@ async function seed() {
   });
   console.log(" User dibuat:", user.email);
 
+  // Buat default hashed password karyawan (password123)
+  const defaultEmpPassword = await bcrypt.hash("password123", 10);
+
   // Buat employee terdaftar di AI
   const initialEmployees = [
     {
       employeeId: "EMP001",
       name: "Budi Santoso",
+      email: "budi@test.com",
+      password: defaultEmpPassword,
       department: "Engineering",
       position: "Developer",
     },
     {
       employeeId: "akmalShaumNadzirin",
       name: "Akmal Shaum Nadzirin",
+      email: "akmal@test.com",
+      password: defaultEmpPassword,
       department: "Engineering",
       position: "AI Engineer",
     },
     {
       employeeId: "gibranRaisHilmyIskandar",
       name: "Gibran Rais Hilmy Iskandar",
+      email: "gibran@test.com",
+      password: defaultEmpPassword,
       department: "Engineering",
       position: "Software Engineer",
     },
     {
       employeeId: "muchPanjiLaksono",
       name: "Much Panji Laksono",
+      email: "panji@test.com",
+      password: defaultEmpPassword,
       department: "Operations",
       position: "Operations Specialist",
     },
     {
       employeeId: "sabrinaAskaAmalina",
       name: "Sabrina Aska Amalina",
+      email: "sabrina@test.com",
+      password: defaultEmpPassword,
       department: "HR",
       position: "HR Specialist",
     },
     {
       employeeId: "septadaAlvianRasyid",
       name: "Septada Alvian Rasyid",
+      email: "septada@test.com",
+      password: defaultEmpPassword,
       department: "Management",
       position: "Manager",
     },
     {
       employeeId: "tiaraSofa",
       name: "Tiara Sofa",
+      email: "tiara@test.com",
+      password: defaultEmpPassword,
       department: "Finance",
       position: "Finance Specialist",
     },
@@ -152,11 +169,14 @@ async function seed() {
   for (const emp of initialEmployees) {
     const record = await prisma.employee.upsert({
       where: { employeeId: emp.employeeId },
-      update: {},
+      update: {
+        email: emp.email,
+        password: emp.password,
+      },
       create: emp,
     });
     seededEmployeeIds.push(record.employeeId);
-    console.log("✅ Employee siap:", record.employeeId, "-", record.name);
+    console.log("✅ Employee siap:", record.employeeId, "-", record.name, "(Email:", record.email, ")");
   }
 
   const cameras = [
