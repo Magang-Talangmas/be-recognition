@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { Employee } from '@prisma/client';
+import { logger } from '../config/logger';
 import { EmployeeRepository, EmployeeListRows } from '../repositories/employee.repository';
 import {
   CreateEmployeeInput,
@@ -9,6 +10,7 @@ import {
 import { ConflictError } from '../errors/ConflictError';
 import { NotFoundError } from '../errors/NotFoundError';
 import { MAX_PHOTOS } from '../lib/upload/upload';
+import { MlRegisterService } from './ml-register.service';
 
 export interface EmployeeDTO {
   id: string;
@@ -57,7 +59,10 @@ function generateEmployeeId(): string {
 }
 
 export class EmployeeService {
-  constructor(private readonly employeeRepository: EmployeeRepository) {}
+  constructor(
+    private readonly employeeRepository: EmployeeRepository,
+    private readonly mlRegister?: MlRegisterService,
+  ) {}
 
   async createEmployee(data: CreatePayload): Promise<EmployeeDTO> {
     if (data.email) {
@@ -79,6 +84,8 @@ export class EmployeeService {
       faceRegistered: data.photos.length >= MAX_PHOTOS,
       photos: data.photos,
     });
+
+    this.syncToMl(employee);
 
     return toDTO(employee);
   }
@@ -127,6 +134,10 @@ export class EmployeeService {
       photos,
     });
 
+    if (data.photos && data.photos.length > 0) {
+      this.syncToMl(employee);
+    }
+
     return toDTO(employee);
   }
 
@@ -168,5 +179,22 @@ export class EmployeeService {
       throw new NotFoundError('Karyawan tidak ditemukan');
     }
     return employee;
+  }
+
+  private syncToMl(employee: Employee): void {
+    if (!this.mlRegister) return;
+    void this.mlRegister
+      .registerEmployee({
+        employeeId: employee.employeeId,
+        name: employee.name,
+        photos: Array.isArray(employee.photos) ? (employee.photos as string[]) : [],
+      })
+      .catch((err: unknown) => {
+        // registerEmployee sudah menangani error internal; log sebagai jaga-jaga
+        logger.error('Sync foto wajah ke ML gagal', {
+          employeeId: employee.employeeId,
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+      });
   }
 }

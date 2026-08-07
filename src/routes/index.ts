@@ -26,6 +26,7 @@ import { CctvService } from '../services/cctv.service';
 import { ReportService } from '../services/report.service';
 import { LiveMonitoringService } from '../services/live.service';
 import { MlDetectService } from '../services/ml-detect.service';
+import { MlRegisterService } from '../services/ml-register.service';
 import { NotificationService } from '../services/notification.service';
 import { SettingsService } from '../services/settings.service';
 import { PermissionService } from '../services/permission.service';
@@ -86,7 +87,10 @@ export const createRouter = (): Router => {
     redis,
     liveMonitoringRepository,
   );
-  const employeeService = new EmployeeService(employeeRepository);
+  const employeeService = new EmployeeService(
+    employeeRepository,
+    new MlRegisterService(),
+  );
   const authService = new AuthService(userRepository);
   const dashboardService = new DashboardService(dashboardRepository);
   const scheduleService = new ScheduleService(scheduleRepository);

@@ -32,6 +32,11 @@ const envSchema = z.object({
     .string()
     .default('60')
     .transform((val) => parseInt(val, 10)),
+  ML_REGISTER_URL: z.string().default('http://192.168.77.171:8088/register'),
+  ML_REGISTER_ENABLED: z
+    .string()
+    .default('true')
+    .transform((val) => val === 'true' || val === '1'),
 });
 
 const parsed = envSchema.safeParse(process.env);
