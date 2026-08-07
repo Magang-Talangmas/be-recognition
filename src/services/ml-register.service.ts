@@ -4,6 +4,7 @@ import { logger } from '../config/logger';
 export interface MlRegisterInput {
   employeeId: string;
   name: string;
+  oldName?: string;
   photos: string[];
 }
 
@@ -29,6 +30,9 @@ export class MlRegisterService {
       const form = new FormData();
       form.append('employeeId', input.employeeId);
       form.append('name', input.name);
+      if (input.oldName) {
+        form.append('oldName', input.oldName);
+      }
 
       let attached = 0;
       for (let i = 0; i < photoUrls.length; i++) {
@@ -105,7 +109,7 @@ export class MlRegisterService {
     }
   }
 
-  async deleteEmployee(input: { employeeId: string; name: string }): Promise<void> {
+  async deleteEmployee(input: { employeeId: string; name: string; oldName?: string }): Promise<void> {
     if (!env.ML_REGISTER_ENABLED) {
       return;
     }
@@ -114,7 +118,7 @@ export class MlRegisterService {
       const res = await fetch(env.ML_REGISTER_URL, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeId: input.employeeId, name: input.name }),
+        body: JSON.stringify({ employeeId: input.employeeId, name: input.name, oldName: input.oldName }),
         signal: AbortSignal.timeout(15000),
       });
 

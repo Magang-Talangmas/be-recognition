@@ -109,6 +109,7 @@ export class EmployeeService {
 
   async updateEmployee(id: string, data: UpdatePayload): Promise<EmployeeDTO> {
     const existing = await this.findOrThrow(id);
+    const oldName = existing.name;
 
     if (data.email && data.email !== existing.email) {
       const existingEmail = await this.employeeRepository.findByEmail(data.email);
@@ -134,7 +135,11 @@ export class EmployeeService {
       photos,
     });
 
-    this.syncToMl(employee);
+    if (employee.status === 'Active') {
+      this.syncToMl(employee, oldName !== employee.name ? oldName : undefined);
+    } else {
+      this.deleteFromMl(employee, oldName);
+    }
 
     return toDTO(employee);
   }
@@ -143,6 +148,11 @@ export class EmployeeService {
     const existing = await this.findOrThrow(id);
     const next = existing.status === 'Active' ? 'Inactive' : 'Active';
     const employee = await this.employeeRepository.toggleStatus(id, next);
+    if (employee.status === 'Active') {
+      this.syncToMl(employee);
+    } else {
+      this.deleteFromMl(employee);
+    }
     return toDTO(employee);
   }
 
@@ -152,6 +162,11 @@ export class EmployeeService {
       id,
       !existing.faceRegistered,
     );
+    if (employee.faceRegistered && employee.status === 'Active') {
+      this.syncToMl(employee);
+    } else {
+      this.deleteFromMl(employee);
+    }
     return toDTO(employee);
   }
 
@@ -161,12 +176,13 @@ export class EmployeeService {
     this.deleteFromMl(existing);
   }
 
-  private deleteFromMl(employee: Employee): void {
+  private deleteFromMl(employee: Employee, oldName?: string): void {
     if (!this.mlRegister) return;
     void this.mlRegister
       .deleteEmployee({
         employeeId: employee.employeeId,
         name: employee.name,
+        oldName,
       })
       .catch((err: unknown) => {
         logger.error('Penghapusan foto/wajah karyawan dari ML gagal', {
@@ -200,16 +216,16 @@ export class EmployeeService {
     this.syncToMl(employee);
   }
 
-  private syncToMl(employee: Employee): void {
+  private syncToMl(employee: Employee, oldName?: string): void {
     if (!this.mlRegister) return;
     void this.mlRegister
       .registerEmployee({
         employeeId: employee.employeeId,
         name: employee.name,
+        oldName,
         photos: Array.isArray(employee.photos) ? (employee.photos as string[]) : [],
       })
       .catch((err: unknown) => {
-        // registerEmployee sudah menangani error internal; log sebagai jaga-jaga
         logger.error('Sync foto wajah ke ML gagal', {
           employeeId: employee.employeeId,
           error: err instanceof Error ? err.message : 'unknown',
