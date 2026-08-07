@@ -104,4 +104,37 @@ export class MlRegisterService {
       });
     }
   }
+
+  async deleteEmployee(input: { employeeId: string; name: string }): Promise<void> {
+    if (!env.ML_REGISTER_ENABLED) {
+      return;
+    }
+
+    try {
+      const res = await fetch(env.ML_REGISTER_URL, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId: input.employeeId, name: input.name }),
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!res.ok) {
+        logger.warn('ML /delete merespon non-OK', {
+          employeeId: input.employeeId,
+          status: res.status,
+        });
+        return;
+      }
+
+      logger.info('Registrasi wajah karyawan berhasil dihapus dari ML engine', {
+        employeeId: input.employeeId,
+        name: input.name,
+      });
+    } catch (err) {
+      logger.warn('Gagal menghapus registrasi wajah dari ML engine', {
+        employeeId: input.employeeId,
+        error: err instanceof Error ? err.message : 'unknown',
+      });
+    }
+  }
 }

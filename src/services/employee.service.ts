@@ -134,9 +134,7 @@ export class EmployeeService {
       photos,
     });
 
-    if (data.photos && data.photos.length > 0) {
-      this.syncToMl(employee);
-    }
+    this.syncToMl(employee);
 
     return toDTO(employee);
   }
@@ -158,8 +156,24 @@ export class EmployeeService {
   }
 
   async deleteEmployee(id: string): Promise<void> {
-    await this.findOrThrow(id);
+    const existing = await this.findOrThrow(id);
     await this.employeeRepository.delete(id);
+    this.deleteFromMl(existing);
+  }
+
+  private deleteFromMl(employee: Employee): void {
+    if (!this.mlRegister) return;
+    void this.mlRegister
+      .deleteEmployee({
+        employeeId: employee.employeeId,
+        name: employee.name,
+      })
+      .catch((err: unknown) => {
+        logger.error('Penghapusan foto/wajah karyawan dari ML gagal', {
+          employeeId: employee.employeeId,
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+      });
   }
 
   private async findOrThrow(id: string): Promise<Employee> {
