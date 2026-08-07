@@ -131,7 +131,7 @@ export class LiveMonitoringService {
    * menyimpan notifikasi, lalu broadcast lewat SSE.
    */
   async recordRecognition(input: RecordRecognitionInput): Promise<LiveRecognitionDTO> {
-    const status = this.resolveStatus(input);
+    const status = input.status ?? this.resolveStatus(input);
     const camera = await this.repository.findCameraByCameraId(input.cameraId).catch(() => null);
     const employeeName = input.employeeId
       ? await this.repository.findEmployeeNameByEmployeeId(input.employeeId)

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getPrismaClient } from '../lib/prisma/client';
 import { getRedisClient } from '../lib/redis/client';
+import { env } from '../config/env';
 
 // Repositories
 import { AttendanceRepository } from '../repositories/attendance.repository';
@@ -24,6 +25,7 @@ import { ScheduleService } from '../services/schedule.service';
 import { CctvService } from '../services/cctv.service';
 import { ReportService } from '../services/report.service';
 import { LiveMonitoringService } from '../services/live.service';
+import { MlDetectService } from '../services/ml-detect.service';
 import { NotificationService } from '../services/notification.service';
 import { SettingsService } from '../services/settings.service';
 import { PermissionService } from '../services/permission.service';
@@ -91,6 +93,10 @@ export const createRouter = (): Router => {
   const cctvService = new CctvService(cctvRepository);
   const reportService = new ReportService(reportRepository);
   const liveMonitoringService = new LiveMonitoringService(liveMonitoringRepository);
+  const mlDetectService = new MlDetectService(liveMonitoringService);
+  if (env.NODE_ENV !== 'test') {
+    mlDetectService.start();
+  }
   const notificationService = new NotificationService(notificationRepository);
   const settingsService = new SettingsService(settingsRepository);
   const permissionService = new PermissionService(permissionRepository, employeeRepository);

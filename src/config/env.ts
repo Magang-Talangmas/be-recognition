@@ -18,6 +18,20 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().min(1, 'SUPABASE_URL wajib diisi'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY wajib diisi'),
   SUPABASE_STORAGE_BUCKET: z.string().min(1, 'SUPABASE_STORAGE_BUCKET wajib diisi'),
+  ML_DETECT_URL: z.string().default('http://192.168.77.171:8088/detect'),
+  ML_DETECT_INTERVAL_MS: z
+    .string()
+    .default('5000')
+    .transform((val) => parseInt(val, 10)),
+  ML_DETECT_CAMERA_ID: z.string().default('CAM-05'),
+  ML_DETECT_SIMILARITY_THRESHOLD: z
+    .string()
+    .default('10')
+    .transform((val) => parseFloat(val)),
+  ML_DETECT_DEDUP_SECONDS: z
+    .string()
+    .default('60')
+    .transform((val) => parseInt(val, 10)),
 });
 
 const parsed = envSchema.safeParse(process.env);

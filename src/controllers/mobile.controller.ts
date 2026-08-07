@@ -124,9 +124,6 @@ export class MobileController {
       const eventType = req.body.eventType || 'CHECK_IN';
 
       const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-      logger.info(
-        `Mobile check-in debug | contentType=${req.headers['content-type'] ?? '-'} | bodyKeys=${Object.keys(req.body ?? {}).join(',')} | files=${files.length} | body=${JSON.stringify(req.body)}`,
-      );
       if (files.length === 0) {
         throw new ValidationError('Foto selfie wajib diupload saat check-in');
       }
