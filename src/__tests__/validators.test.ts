@@ -124,6 +124,36 @@ describe('Employee Validator', () => {
 
       expect(Object.keys(result)).toHaveLength(0);
     });
+
+    it('harus mengurai photoUrls dari JSON string menjadi array', () => {
+      const result = updateEmployeeSchema.parse({
+        photoUrls: '["https://f/1.jpg","https://f/2.jpg"]',
+      });
+
+      expect(result.photoUrls).toEqual(['https://f/1.jpg', 'https://f/2.jpg']);
+    });
+
+    it('harus menerima photoUrls "[]" (hapus semua foto)', () => {
+      const result = updateEmployeeSchema.parse({ photoUrls: '[]' });
+
+      expect(result.photoUrls).toEqual([]);
+    });
+
+    it('harus mengabaikan elemen non-string di photoUrls', () => {
+      const result = updateEmployeeSchema.parse({
+        photoUrls: '["https://f/1.jpg", 123, null]',
+      });
+
+      expect(result.photoUrls).toEqual(['https://f/1.jpg']);
+    });
+
+    it('harus gagal jika photoUrls bukan JSON valid', () => {
+      expect(() => updateEmployeeSchema.parse({ photoUrls: 'bukan-json' })).toThrow();
+    });
+
+    it('harus gagal jika photoUrls bukan array', () => {
+      expect(() => updateEmployeeSchema.parse({ photoUrls: '{"a":1}' })).toThrow();
+    });
   });
 
   describe('employeeFilterSchema', () => {

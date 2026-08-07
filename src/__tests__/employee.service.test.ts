@@ -182,6 +182,75 @@ describe('EmployeeService', () => {
       ).rejects.toThrow(NotFoundError);
       expect(mockEmployeeRepository.update).not.toHaveBeenCalled();
     });
+
+    it('harus menghitung ulang daftar foto dari photoUrls + foto baru (bukan append)', async () => {
+      (mockEmployeeRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockEmployee,
+        photos: ['https://f/1.jpg', 'https://f/2.jpg', 'https://f/3.jpg'],
+      });
+      (mockEmployeeRepository.update as jest.Mock).mockImplementation(
+        (_id: string, data: any) => Promise.resolve({ ...mockEmployee, ...data }),
+      );
+
+      const result = await service.updateEmployee('uuid-1', {
+        photoUrls: ['https://f/2.jpg', 'https://f/3.jpg'],
+        photos: ['https://f/baru.jpg'],
+      });
+
+      expect(mockEmployeeRepository.update).toHaveBeenCalledWith(
+        'uuid-1',
+        expect.objectContaining({
+          photos: ['https://f/2.jpg', 'https://f/3.jpg', 'https://f/baru.jpg'],
+        }),
+      );
+      expect(result.photos).toEqual(['https://f/2.jpg', 'https://f/3.jpg', 'https://f/baru.jpg']);
+    });
+
+    it('harus mengabaikan photoUrls yang bukan milik employee', async () => {
+      (mockEmployeeRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockEmployee,
+        photos: ['https://f/1.jpg'],
+      });
+      (mockEmployeeRepository.update as jest.Mock).mockImplementation(
+        (_id: string, data: any) => Promise.resolve({ ...mockEmployee, ...data }),
+      );
+
+      const result = await service.updateEmployee('uuid-1', {
+        photoUrls: ['https://evil.com/x.jpg', 'https://f/1.jpg'],
+      });
+
+      expect(result.photos).toEqual(['https://f/1.jpg']);
+    });
+
+    it('harus menghapus semua foto jika photoUrls kosong', async () => {
+      (mockEmployeeRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockEmployee,
+        photos: ['https://f/1.jpg', 'https://f/2.jpg'],
+      });
+      (mockEmployeeRepository.update as jest.Mock).mockImplementation(
+        (_id: string, data: any) => Promise.resolve({ ...mockEmployee, ...data }),
+      );
+
+      const result = await service.updateEmployee('uuid-1', { photoUrls: [] });
+
+      expect(result.photos).toEqual([]);
+    });
+
+    it('harus mempertahankan foto lama jika photoUrls tidak dikirim', async () => {
+      (mockEmployeeRepository.findById as jest.Mock).mockResolvedValue({
+        ...mockEmployee,
+        photos: ['https://f/1.jpg', 'https://f/2.jpg'],
+      });
+      (mockEmployeeRepository.update as jest.Mock).mockImplementation(
+        (_id: string, data: any) => Promise.resolve({ ...mockEmployee, ...data }),
+      );
+
+      const result = await service.updateEmployee('uuid-1', {
+        photos: ['https://f/baru.jpg'],
+      });
+
+      expect(result.photos).toEqual(['https://f/1.jpg', 'https://f/2.jpg', 'https://f/baru.jpg']);
+    });
   });
 
   describe('toggleStatus', () => {
