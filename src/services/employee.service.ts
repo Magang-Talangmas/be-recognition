@@ -140,11 +140,24 @@ export class EmployeeService {
       department: data.department,
       status: data.status,
       joinedAt: data.joinedAt,
-      faceRegistered: photos.length >= MAX_PHOTOS ? true : existing.faceRegistered,
+      faceRegistered:
+        photos.length === 0
+          ? false
+          : photos.length >= MAX_PHOTOS
+            ? true
+            : existing.faceRegistered,
       photos,
     });
 
-    if (newPhotos.length > 0) {
+    const photosChanged =
+      newPhotos.length > 0 ||
+      (data.photoUrls !== undefined && keptUrls.length !== existingPhotos.length);
+    const nameChanged = data.name !== undefined && data.name !== existing.name;
+
+    if (photos.length === 0 && existingPhotos.length > 0) {
+      // Semua foto dihapus → hapus wajah dari engine pengenalan/ML.
+      this.removeFromMl(employee);
+    } else if (photosChanged || nameChanged) {
       this.syncToMl(employee);
     }
 
@@ -174,8 +187,9 @@ export class EmployeeService {
   }
 
   async deleteEmployee(id: string): Promise<void> {
-    await this.findOrThrow(id);
+    const employee = await this.findOrThrow(id);
     await this.employeeRepository.delete(id);
+    this.removeFromMl(employee);
   }
 
   private async findOrThrow(id: string): Promise<Employee> {
@@ -217,6 +231,21 @@ export class EmployeeService {
       .catch((err: unknown) => {
         // registerEmployee sudah menangani error internal; log sebagai jaga-jaga
         logger.error('Sync foto wajah ke ML gagal', {
+          employeeId: employee.employeeId,
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+      });
+  }
+
+  private removeFromMl(employee: Employee): void {
+    if (!this.mlRegister) return;
+    void this.mlRegister
+      .removeEmployee({
+        employeeId: employee.employeeId,
+        name: employee.name,
+      })
+      .catch((err: unknown) => {
+        logger.error('Hapus wajah dari ML gagal', {
           employeeId: employee.employeeId,
           error: err instanceof Error ? err.message : 'unknown',
         });

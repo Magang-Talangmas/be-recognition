@@ -32,11 +32,23 @@ const envSchema = z.object({
     .string()
     .default('60')
     .transform((val) => parseInt(val, 10)),
-  ML_REGISTER_URL: z.string().default('http://192.168.77.171:8088/register'),
+  ML_REGISTER_URL: z
+    .string()
+    .default('http://192.168.77.171:8088/api/v1/employees/sync-ml'),
   ML_REGISTER_ENABLED: z
     .string()
     .default('true')
     .transform((val) => val === 'true' || val === '1'),
+  ML_REGISTER_TIMEOUT_MS: z
+    .string()
+    .default('60000')
+    .transform((val) => parseInt(val, 10)),
+  ML_REMOVE_URL: z
+    .string()
+    .default('')
+    .refine((val) => val === '' || val.startsWith('http'), {
+      message: 'ML_REMOVE_URL harus berupa URL http(s) atau kosong',
+    }),
 });
 
 const parsed = envSchema.safeParse(process.env);
