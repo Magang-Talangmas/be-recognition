@@ -56,6 +56,38 @@ export async function uploadEmployeePhotos(
 }
 
 /**
+ * Menghapus file foto wajah dari Supabase Storage.
+ * Hanya menghapus file di dalam folder employee_faces agar tidak
+ * menyentuh foto check-in / izin.
+ */
+export async function deleteEmployeePhotoFiles(urls: string[]): Promise<void> {
+  const paths: string[] = [];
+
+  for (const url of urls) {
+    try {
+      const parts = new URL(url).pathname.split('/').filter(Boolean);
+      const publicIdx = parts.indexOf('public');
+      if (publicIdx === -1) continue;
+      const filePath = parts.slice(publicIdx + 2).join('/');
+      if (!filePath.startsWith(`${PHOTOS_FOLDER}/`)) continue;
+      paths.push(filePath);
+    } catch {
+      // URL tidak valid, abaikan
+    }
+  }
+
+  if (paths.length === 0) return;
+
+  const { error } = await getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .remove(paths);
+
+  if (error) {
+    throw new Error(`Hapus foto dari Supabase gagal: ${error.message}`);
+  }
+}
+
+/**
  * Upload bukti foto izin ke Supabase Storage.
  * Path: permissions/{employeeId}/{date}-{timestamp}-{uuid}.{ext}
  */

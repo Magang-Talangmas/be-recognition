@@ -8,137 +8,152 @@ export interface MlRegisterInput {
   photos: string[];
 }
 
+export interface MlRegisterResult {
+  ok: boolean;
+  message: string;
+  photosSent: number;
+}
+
 /**
- * Mengirim foto wajah karyawan ke ML server (POST /register) agar
- * wajahnya terdaftar di dataset ML dan bisa dikenali oleh /detect.
+ * Sinkronisasi foto wajah karyawan ke ML server.
  *
- * Non-blocking: kegagalan hanya dicatat, tidak menggagalkan proses utama
- * (mis. create/update employee).
+ * Kontrak endpoint ML:
+ *   POST {ML_REGISTER_URL}        (default: /api/v1/employees/sync-ml)
+ *   Content-Type: application/json
+ *   Body: { "employeeId": string, "name": string, "oldName": string, "photos": [url, ...] }
+ *
+ * Penghapusan:
+ *   DELETE {ML_REGISTER_URL}
+ *   Body: { "employeeId": string, "name": string, "oldName": string }
  */
 export class MlRegisterService {
-  async registerEmployee(input: MlRegisterInput): Promise<void> {
+  async registerEmployee(input: MlRegisterInput): Promise<MlRegisterResult> {
     if (!env.ML_REGISTER_ENABLED) {
-      return;
+      return { ok: false, message: 'ML register dinonaktifkan', photosSent: 0 };
     }
 
     const photoUrls = (input.photos ?? []).filter(Boolean);
     if (photoUrls.length === 0) {
-      return;
+      return { ok: false, message: 'Karyawan tidak memiliki foto', photosSent: 0 };
     }
 
     try {
-      const form = new FormData();
-      form.append('employeeId', input.employeeId);
-      form.append('name', input.name);
-      if (input.oldName) {
-        form.append('oldName', input.oldName);
-      }
-
-      let attached = 0;
-      for (let i = 0; i < photoUrls.length; i++) {
-        const url = photoUrls[i];
-        try {
-          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-          if (!res.ok) continue;
-          const buf = await res.arrayBuffer();
-          const type = res.headers.get('content-type') ?? 'image/jpeg';
-          const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
-          form.append(
-            'photos',
-            new Blob([buf], { type }),
-            `${input.employeeId}-${i + 1}.${ext}`,
-          );
-          attached++;
-        } catch (err) {
-          logger.warn('Gagal mengambil foto wajah untuk ML register', {
-            employeeId: input.employeeId,
-            url,
-            error: err instanceof Error ? err.message : 'unknown',
-          });
-        }
-      }
-
-      if (attached === 0) {
-        logger.warn('Tidak ada foto yang berhasil dikirim ke ML register', {
-          employeeId: input.employeeId,
-        });
-        return;
-      }
-
       const res = await fetch(env.ML_REGISTER_URL, {
         method: 'POST',
-        body: form,
-        signal: AbortSignal.timeout(15000),
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: input.employeeId,
+          name: input.name,
+          oldName: input.oldName,
+          photos: photoUrls,
+        }),
+        signal: AbortSignal.timeout(env.ML_REGISTER_TIMEOUT_MS),
       });
 
       if (!res.ok) {
-        logger.warn('ML /register merespon non-OK', {
+        const text = await res.text().catch(() => '');
+        logger.warn('ML sync-ml merespon non-OK', {
           employeeId: input.employeeId,
           status: res.status,
-          body: await res.text().catch(() => ''),
+          body: text.slice(0, 200),
         });
-        return;
+        return {
+          ok: false,
+          message: `ML merespon status ${res.status}: ${text.slice(0, 200)}`,
+          photosSent: photoUrls.length,
+        };
       }
 
       const contentType = res.headers.get('content-type') ?? '';
       if (!contentType.includes('application/json')) {
-        logger.warn('ML /register tidak mengembalikan JSON — endpoint mungkin belum diimplementasikan', {
+        logger.warn('ML sync-ml tidak mengembalikan JSON', {
           employeeId: input.employeeId,
           contentType,
         });
-        return;
+        return {
+          ok: false,
+          message: 'ML sync-ml tidak mengembalikan JSON',
+          photosSent: photoUrls.length,
+        };
       }
 
       const body = (await res.json().catch(() => null)) as { success?: boolean } | null;
       if (!body?.success) {
-        logger.warn('ML /register merespon sukses=false', {
+        logger.warn('ML sync-ml merespon success=false', {
           employeeId: input.employeeId,
+          body,
         });
-        return;
+        return {
+          ok: false,
+          message: 'ML sync-ml merespon success=false',
+          photosSent: photoUrls.length,
+        };
       }
 
-      logger.info('Foto wajah terkirim ke ML /register', {
+      logger.info('Foto wajah terkirim ke ML sync-ml', {
         employeeId: input.employeeId,
-        photos: attached,
+        photos: photoUrls.length,
       });
+      return { ok: true, message: 'Berhasil disinkronkan ke ML', photosSent: photoUrls.length };
     } catch (err) {
-      logger.warn('Gagal mengirim foto wajah ke ML /register', {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      logger.warn('Gagal mengirim foto wajah ke ML sync-ml', {
         employeeId: input.employeeId,
-        error: err instanceof Error ? err.message : 'unknown',
+        error: msg,
       });
+      return { ok: false, message: `Gagal: ${msg}`, photosSent: 0 };
+    }
+  }
+
+  async removeEmployee(input: { employeeId: string; name: string; oldName?: string }): Promise<MlRegisterResult> {
+    if (!env.ML_REGISTER_ENABLED) {
+      return { ok: false, message: 'ML register dinonaktifkan', photosSent: 0 };
+    }
+
+    try {
+      const targetUrl = env.ML_REMOVE_URL || env.ML_REGISTER_URL;
+      const method = env.ML_REMOVE_URL ? 'POST' : 'DELETE';
+
+      const res = await fetch(targetUrl, {
+        method,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: input.employeeId,
+          name: input.name,
+          oldName: input.oldName,
+        }),
+        signal: AbortSignal.timeout(env.ML_REGISTER_TIMEOUT_MS),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        logger.warn('ML remove merespon non-OK', {
+          employeeId: input.employeeId,
+          status: res.status,
+          body: text.slice(0, 200),
+        });
+        return {
+          ok: false,
+          message: `ML remove merespon status ${res.status}: ${text.slice(0, 200)}`,
+          photosSent: 0,
+        };
+      }
+
+      logger.info('Wajah karyawan dihapus dari ML', {
+        employeeId: input.employeeId,
+      });
+      return { ok: true, message: 'Wajah berhasil dihapus dari ML', photosSent: 0 };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      logger.warn('Gagal menghapus wajah dari ML', {
+        employeeId: input.employeeId,
+        error: msg,
+      });
+      return { ok: false, message: `Gagal: ${msg}`, photosSent: 0 };
     }
   }
 
   async deleteEmployee(input: { employeeId: string; name: string; oldName?: string }): Promise<void> {
-    if (!env.ML_REGISTER_ENABLED) {
-      return;
-    }
-
-    try {
-      const res = await fetch(env.ML_REGISTER_URL, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeId: input.employeeId, name: input.name, oldName: input.oldName }),
-        signal: AbortSignal.timeout(15000),
-      });
-
-      if (!res.ok) {
-        logger.warn('ML /delete merespon non-OK', {
-          employeeId: input.employeeId,
-          status: res.status,
-        });
-        return;
-      }
-
-      logger.info('Registrasi wajah karyawan berhasil dihapus dari ML engine', {
-        employeeId: input.employeeId,
-        name: input.name,
-      });
-    } catch (err) {
-      logger.warn('Gagal menghapus registrasi wajah dari ML engine', {
-        employeeId: input.employeeId,
-        error: err instanceof Error ? err.message : 'unknown',
-      });
-    }
+    await this.removeEmployee(input);
   }
 }

@@ -28,6 +28,21 @@ export const createEmployeeSchema = z.object({
 export const updateEmployeeSchema = z.object({
   name: optionalString(z.string().trim().min(1, 'name tidak boleh kosong')),
   ...employeeBaseShape,
+  photoUrls: z
+    .union([z.literal(''), z.string()])
+    .optional()
+    .transform((val) => {
+      if (!val) return undefined;
+      try {
+        const parsed = JSON.parse(val) as unknown;
+        if (!Array.isArray(parsed)) {
+          throw new Error('photoUrls harus berupa array');
+        }
+        return parsed.filter((item): item is string => typeof item === 'string');
+      } catch {
+        throw new Error('photoUrls harus berupa JSON string array');
+      }
+    }),
 });
 
 export const employeeFilterSchema = z.object({

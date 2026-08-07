@@ -10,6 +10,7 @@ import {
 import { ConflictError } from '../errors/ConflictError';
 import { NotFoundError } from '../errors/NotFoundError';
 import { MAX_PHOTOS } from '../lib/upload/upload';
+import { deleteEmployeePhotoFiles } from '../lib/storage';
 import { MlRegisterService } from './ml-register.service';
 
 export interface EmployeeDTO {
@@ -118,10 +119,19 @@ export class EmployeeService {
       }
     }
 
-    const photos =
-      data.photos && data.photos.length > 0
-        ? [...(Array.isArray(existing.photos) ? (existing.photos as string[]) : []), ...data.photos]
-        : (Array.isArray(existing.photos) ? (existing.photos as string[]) : []);
+    const existingPhotos = Array.isArray(existing.photos)
+      ? (existing.photos as string[])
+      : [];
+    const newPhotos = data.photos ?? [];
+
+    // Hitung ulang daftar foto final: URL yang dipertahankan (photoUrls,
+    // hanya yang memang milik employee ini) + foto baru. BUKAN append ke daftar lama.
+    const keptUrls =
+      data.photoUrls !== undefined
+        ? data.photoUrls.filter((url) => existingPhotos.includes(url))
+        : existingPhotos;
+
+    const photos = [...keptUrls, ...newPhotos];
 
     const employee = await this.employeeRepository.update(id, {
       name: data.name,
@@ -131,14 +141,27 @@ export class EmployeeService {
       department: data.department,
       status: data.status,
       joinedAt: data.joinedAt,
-      faceRegistered: photos.length >= MAX_PHOTOS ? true : existing.faceRegistered,
+      faceRegistered:
+        photos.length === 0
+          ? false
+          : photos.length >= MAX_PHOTOS
+            ? true
+            : existing.faceRegistered,
       photos,
     });
 
-    if (employee.status === 'Active') {
+    if (photos.length === 0 && existingPhotos.length > 0) {
+      this.deleteFromMl(employee, oldName);
+    } else if (employee.status === 'Active') {
       this.syncToMl(employee, oldName !== employee.name ? oldName : undefined);
     } else {
       this.deleteFromMl(employee, oldName);
+    }
+
+    // Best-effort: hapus file lama yang tidak lagi dipertahankan.
+    const removed = existingPhotos.filter((url) => !keptUrls.includes(url));
+    if (removed.length > 0) {
+      this.deleteRemovedPhotos(removed);
     }
 
     return toDTO(employee);
@@ -198,6 +221,15 @@ export class EmployeeService {
       throw new NotFoundError('Employee not found');
     }
     return employee;
+  }
+
+  private deleteRemovedPhotos(urls: string[]): void {
+    void deleteEmployeePhotoFiles(urls).catch((err: unknown) => {
+      logger.warn('Gagal menghapus foto lama dari storage', {
+        urls,
+        error: err instanceof Error ? err.message : 'unknown',
+      });
+    });
   }
 
   private async findByUuidOrEmployeeId(identifier: string): Promise<Employee> {

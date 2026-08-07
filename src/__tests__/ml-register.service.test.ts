@@ -13,67 +13,110 @@ describe('MlRegisterService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new MlRegisterService();
-    Object.assign(env, { ...baseEnv, ML_REGISTER_ENABLED: true, ML_REGISTER_URL: 'http://ml/register' });
+    Object.assign(env, {
+      ...baseEnv,
+      ML_REGISTER_ENABLED: true,
+      ML_REGISTER_URL: 'http://ml/api/v1/employees/sync-ml',
+      ML_REGISTER_TIMEOUT_MS: 60000,
+      ML_REMOVE_URL: '',
+    });
     global.fetch = jest.fn();
   });
 
-  const makeImgResponse = (type = 'image/jpeg') =>
-    new Response(new ArrayBuffer(8), { status: 200, headers: { 'content-type': type } });
+  it('harus mengirim JSON { employeeId, name, photos: [url] } ke sync-ml', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      new Response(
+        JSON.stringify({ success: true, message: 'ok', data: {} }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
 
-  it('harus mengirim multipart FormData dengan employeeId, name dan photos', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(makeImgResponse())
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ success: true, message: 'ok', data: {} }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        ),
-      );
-
-    await service.registerEmployee({
+    const result = await service.registerEmployee({
       employeeId: 'EMP-001',
       name: 'Budi Santoso',
-      photos: ['https://supabase/faces/1.jpg'],
+      photos: ['https://supabase/faces/1.jpg', 'https://supabase/faces/2.jpg'],
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('https://supabase/faces/1.jpg', expect.anything());
-    const [url, init] = (global.fetch as jest.Mock).mock.calls[1];
-    expect(url).toBe('http://ml/register');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toBe('http://ml/api/v1/employees/sync-ml');
     expect(init.method).toBe('POST');
-    expect(init.body).toBeInstanceOf(FormData);
+    expect(init.headers['content-type']).toBe('application/json');
+    expect(JSON.parse(init.body)).toEqual({
+      employeeId: 'EMP-001',
+      name: 'Budi Santoso',
+      photos: ['https://supabase/faces/1.jpg', 'https://supabase/faces/2.jpg'],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.photosSent).toBe(2);
   });
 
-  it('harus tidak melakukan apa-apa jika ML_REGISTER_ENABLED false', async () => {
+  it('harus menandai gagal jika ML_REGISTER_ENABLED false', async () => {
     Object.assign(env, { ML_REGISTER_ENABLED: false });
 
-    await service.registerEmployee({
+    const result = await service.registerEmployee({
       employeeId: 'EMP-001',
       name: 'Budi',
       photos: ['https://supabase/faces/1.jpg'],
     });
 
     expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
   });
 
-  it('harus tidak melakukan apa-apa jika tidak ada photos', async () => {
-    await service.registerEmployee({
+  it('harus menandai gagal jika tidak ada photos', async () => {
+    const result = await service.registerEmployee({
       employeeId: 'EMP-001',
       name: 'Budi',
       photos: [],
     });
 
     expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    expect(result.photosSent).toBe(0);
   });
 
   it('harus menangani kegagalan tanpa melempar error', async () => {
     (global.fetch as jest.Mock).mockRejectedValue(new Error('ECONNREFUSED'));
 
-    await expect(
-      service.registerEmployee({
-        employeeId: 'EMP-001',
-        name: 'Budi',
-        photos: ['https://supabase/faces/1.jpg'],
-      }),
-    ).resolves.toBeUndefined();
+    const result = await service.registerEmployee({
+      employeeId: 'EMP-001',
+      name: 'Budi',
+      photos: ['https://supabase/faces/1.jpg'],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('Gagal');
+  });
+
+  it('removeEmployee harus dilewati jika ML_REMOVE_URL kosong', async () => {
+    const result = await service.removeEmployee({
+      employeeId: 'EMP-001',
+      name: 'Budi',
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('ML_REMOVE_URL');
+  });
+
+  it('removeEmployee harus mengirim JSON { employeeId, name } ke ML_REMOVE_URL', async () => {
+    Object.assign(env, { ML_REMOVE_URL: 'http://ml/api/v1/employees/remove' });
+    (global.fetch as jest.Mock).mockResolvedValue(
+      new Response(
+        JSON.stringify({ success: true, message: 'ok' }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+
+    const result = await service.removeEmployee({
+      employeeId: 'EMP-001',
+      name: 'Budi',
+    });
+
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toBe('http://ml/api/v1/employees/remove');
+    expect(JSON.parse(init.body)).toEqual({ employeeId: 'EMP-001', name: 'Budi' });
+    expect(result.ok).toBe(true);
   });
 });
