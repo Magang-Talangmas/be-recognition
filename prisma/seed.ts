@@ -101,64 +101,61 @@ async function seed() {
   });
   console.log(" User dibuat:", user.email);
 
-  // Buat default hashed password karyawan (password123)
-  const defaultEmpPassword = await bcrypt.hash("password123", 10);
-
-  // Buat employee terdaftar di AI
+  // Buat employee terdaftar di AI dengan email @gmail.com & password individual
   const initialEmployees = [
     {
       employeeId: "EMP001",
       name: "Budi Santoso",
-      email: "budi@test.com",
-      password: defaultEmpPassword,
+      email: "budi@gmail.com",
+      password: await bcrypt.hash("budi123", 10),
       department: "Engineering",
       position: "Developer",
     },
     {
       employeeId: "akmalShaumNadzirin",
       name: "Akmal Shaum Nadzirin",
-      email: "akmal@test.com",
-      password: defaultEmpPassword,
+      email: "akmal@gmail.com",
+      password: await bcrypt.hash("akmal123", 10),
       department: "Engineering",
       position: "AI Engineer",
     },
     {
       employeeId: "gibranRaisHilmyIskandar",
       name: "Gibran Rais Hilmy Iskandar",
-      email: "gibran@test.com",
-      password: defaultEmpPassword,
+      email: "gibran@gmail.com",
+      password: await bcrypt.hash("gibran123", 10),
       department: "Engineering",
       position: "Software Engineer",
     },
     {
       employeeId: "muchPanjiLaksono",
       name: "Much Panji Laksono",
-      email: "panji@test.com",
-      password: defaultEmpPassword,
+      email: "panji@gmail.com",
+      password: await bcrypt.hash("panji123", 10),
       department: "Operations",
       position: "Operations Specialist",
     },
     {
       employeeId: "sabrinaAskaAmalina",
       name: "Sabrina Aska Amalina",
-      email: "sabrina@test.com",
-      password: defaultEmpPassword,
+      email: "sabrina@gmail.com",
+      password: await bcrypt.hash("sabrina123", 10),
       department: "HR",
       position: "HR Specialist",
     },
     {
       employeeId: "septadaAlvianRasyid",
       name: "Septada Alvian Rasyid",
-      email: "septada@test.com",
-      password: defaultEmpPassword,
+      email: "septada@gmail.com",
+      password: await bcrypt.hash("septada123", 10),
       department: "Management",
       position: "Manager",
     },
     {
       employeeId: "tiaraSofa",
       name: "Tiara Sofa",
-      email: "tiara@test.com",
-      password: defaultEmpPassword,
+      email: "tiara@gmail.com",
+      password: await bcrypt.hash("tiara123", 10),
       department: "Finance",
       position: "Finance Specialist",
     },
