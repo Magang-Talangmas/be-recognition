@@ -55,6 +55,13 @@ export const createEmployeeRouter = (
   router.patch('/:id/face', requireRole(Role.ADMIN), employeeController.toggleFace);
 
   /**
+   * @route   POST /api/v1/employees/sync-ml
+   * @desc    Picu sinkronisasi manual foto seluruh karyawan ke ML engine
+   * @access  JWT (ADMIN only)
+   */
+  router.post('/sync-ml', requireRole(Role.ADMIN), employeeController.syncMl);
+
+  /**
    * @route   DELETE /api/v1/employees/:id
    * @desc    Soft delete employee
    * @access  JWT (ADMIN only)

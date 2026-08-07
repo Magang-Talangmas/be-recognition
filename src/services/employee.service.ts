@@ -181,6 +181,11 @@ export class EmployeeService {
     return employee;
   }
 
+  async syncEmployeeToMl(id: string): Promise<void> {
+    const employee = await this.findOrThrow(id);
+    this.syncToMl(employee);
+  }
+
   private syncToMl(employee: Employee): void {
     if (!this.mlRegister) return;
     void this.mlRegister

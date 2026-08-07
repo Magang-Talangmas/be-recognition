@@ -195,4 +195,29 @@ export class EmployeeController {
       next(error);
     }
   };
+
+  syncMl = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await this.employeeService.getEmployees({ page: 1, per_page: 1000 });
+      let syncedCount = 0;
+      for (const emp of result.items) {
+        if (emp.photos && emp.photos.length > 0) {
+          await this.employeeService.syncEmployeeToMl(emp.id);
+          syncedCount++;
+        }
+      }
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: `Sinkronisasi ML dipicu untuk ${syncedCount} karyawan`,
+        data: { syncedCount },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
