@@ -1,2 +1,1 @@
--- AlterTable
-ALTER TABLE "employees" ALTER COLUMN "photos" DROP DEFAULT;
+-- Auto-generated redundant migration (DROP DEFAULT di kolom yang belum ada). No-op untuk deploy fresh.\nSELECT 1;\n

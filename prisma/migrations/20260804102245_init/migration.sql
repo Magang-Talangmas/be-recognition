@@ -1,8 +1,1 @@
--- CreateEnum
-CREATE TYPE "ConfirmationStatus" AS ENUM ('PENDING', 'CONFIRMED', 'REJECTED');
-
--- AlterTable
-ALTER TABLE "attendances" ADD COLUMN     "confirmationStatus" "ConfirmationStatus" NOT NULL DEFAULT 'PENDING';
-
--- CreateIndex
-CREATE INDEX "attendances_confirmationStatus_idx" ON "attendances"("confirmationStatus");
+-- Duplikat dari 20260804180000_add_confirmation_status. No-op (rollback di DB lokal).\nSELECT 1;\n
