@@ -1,9 +1,12 @@
 import { PermissionRepository } from '../repositories/permission.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
+import { NotificationRepository } from '../repositories/notification.repository';
 import { uploadPermissionPhoto } from '../lib/storage';
+import { sendPushNotification } from '../lib/firebase';
 import { NotFoundError } from '../errors/NotFoundError';
 import { ValidationError } from '../errors/ValidationError';
 import { HTTP_STATUS } from '../constants/http.constants';
+import { logger } from '../config/logger';
 import {
   CreatePermissionInput,
   PermissionQueryInput,
@@ -14,10 +17,15 @@ import {
   toPermissionDTO,
 } from '../interfaces/permission.interface';
 
+export type PermissionNotificationType =
+  | 'PERMISSION_APPROVED'
+  | 'PERMISSION_REJECTED';
+
 export class PermissionService {
   constructor(
     private readonly repository: PermissionRepository,
     private readonly employeeRepository: EmployeeRepository,
+    private readonly notificationRepository?: NotificationRepository,
   ) {}
 
   async createPermission(
@@ -55,7 +63,9 @@ export class PermissionService {
       status: autoApprove ? 'APPROVED' : 'PENDING',
     });
 
-    return toPermissionDTO(created);
+    const dto = toPermissionDTO(created);
+    await this.notifyPermissionStatus(dto);
+    return dto;
   }
 
   async updateStatus(id: string, status: string): Promise<PermissionDTO> {
@@ -65,11 +75,72 @@ export class PermissionService {
     }
 
     const updated = await this.repository.updateStatus(id, status);
-    return toPermissionDTO(updated);
+    const dto = toPermissionDTO(updated);
+    await this.notifyPermissionStatus(dto);
+    return dto;
   }
 
   async getPermissions(filter: PermissionQueryInput): Promise<PermissionList> {
     const { items, total } = await this.repository.findMany(filter);
     return { items: items.map(toPermissionDTO), total };
+  }
+
+  /**
+   * Kirim notifikasi ke employee (in-app + push) saat izin disetujui/ditolak admin.
+   * Best-effort: kegagalan notifikasi tidak menggagalkan operasi utama.
+   */
+  private async notifyPermissionStatus(permission: PermissionDTO): Promise<void> {
+    if (!this.notificationRepository) return;
+
+    if (permission.status !== 'APPROVED' && permission.status !== 'REJECTED') {
+      return;
+    }
+
+    const notificationType =
+      permission.status === 'APPROVED'
+        ? 'PERMISSION_APPROVED'
+        : 'PERMISSION_REJECTED';
+    const title =
+      permission.status === 'APPROVED' ? 'Izin Disetujui' : 'Izin Ditolak';
+    const description =
+      permission.status === 'APPROVED'
+        ? `Pengajuan ${permission.type} tanggal ${permission.date} telah disetujui.`
+        : `Pengajuan ${permission.type} tanggal ${permission.date} ditolak. Silakan hubungi admin.`;
+
+    try {
+      const employee = await this.employeeRepository.findByEmployeeId(
+        permission.employeeId,
+      );
+
+      await this.notificationRepository.create({
+        employeeId: permission.employeeId,
+        type: notificationType,
+        title,
+        description,
+      });
+
+      if (employee?.fcmToken) {
+        sendPushNotification(
+          employee.fcmToken,
+          title,
+          description,
+          {
+            type: notificationType,
+            permissionId: permission.id,
+            employeeId: permission.employeeId,
+          },
+        ).catch((err: unknown) => {
+          logger.error('Gagal mengirim push notifikasi izin', {
+            permissionId: permission.id,
+            error: err instanceof Error ? err.message : 'unknown',
+          });
+        });
+      }
+    } catch (err) {
+      logger.error('Gagal membuat notifikasi perubahan status izin', {
+        permissionId: permission.id,
+        error: err instanceof Error ? err.message : 'unknown',
+      });
+    }
   }
 }

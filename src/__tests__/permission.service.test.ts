@@ -1,6 +1,7 @@
 import { PermissionService } from '../services/permission.service';
 import { PermissionRepository } from '../repositories/permission.repository';
 import { EmployeeRepository } from '../repositories/employee.repository';
+import { NotificationRepository } from '../repositories/notification.repository';
 import { NotFoundError } from '../errors/NotFoundError';
 import { ValidationError } from '../errors/ValidationError';
 
@@ -8,7 +9,16 @@ jest.mock('../lib/storage', () => ({
   uploadPermissionPhoto: jest.fn(),
 }));
 
+jest.mock('../config/logger', () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+}));
+
+jest.mock('../lib/firebase', () => ({
+  sendPushNotification: jest.fn().mockResolvedValue('messages/perm-1'),
+}));
+
 import { uploadPermissionPhoto } from '../lib/storage';
+import { sendPushNotification } from '../lib/firebase';
 
 const mockPermissionRepository = {
   create: jest.fn(),
@@ -20,6 +30,10 @@ const mockPermissionRepository = {
 const mockEmployeeRepository = {
   findByEmployeeId: jest.fn(),
 } as unknown as jest.Mocked<EmployeeRepository>;
+
+const mockNotificationRepository = {
+  create: jest.fn(),
+} as unknown as jest.Mocked<NotificationRepository>;
 
 const mockPermission = {
   id: 'perm-cuid-1',
@@ -181,6 +195,144 @@ describe('PermissionService', () => {
         service.updateStatus('perm-000', 'REJECTED'),
       ).rejects.toThrow(NotFoundError);
       expect(mockPermissionRepository.updateStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Notifikasi perubahan status izin', () => {
+    let serviceWithNotif: PermissionService;
+
+    beforeEach(() => {
+      serviceWithNotif = new PermissionService(
+        mockPermissionRepository,
+        mockEmployeeRepository,
+        mockNotificationRepository,
+      );
+      (mockNotificationRepository.create as jest.Mock).mockResolvedValue({
+        id: 'notif-1',
+        employeeId: 'EMP-001',
+        type: 'PERMISSION_APPROVED',
+      });
+      (mockEmployeeRepository.findByEmployeeId as jest.Mock).mockResolvedValue({
+        employeeId: 'EMP-001',
+        name: 'Budi Santoso',
+        fcmToken: 'fcm-token-1',
+      });
+    });
+
+    it('harus kirim notifikasi + push saat izin disetujui (APPROVED)', async () => {
+      (mockPermissionRepository.findById as jest.Mock).mockResolvedValue(mockPermission);
+      (mockPermissionRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockPermission,
+        status: 'APPROVED',
+      });
+
+      await serviceWithNotif.updateStatus('perm-cuid-1', 'APPROVED');
+
+      expect(mockNotificationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employeeId: 'EMP-001',
+          type: 'PERMISSION_APPROVED',
+          title: 'Izin Disetujui',
+          description: expect.stringContaining('2026-08-06'),
+        }),
+      );
+      expect(sendPushNotification).toHaveBeenCalledWith(
+        'fcm-token-1',
+        'Izin Disetujui',
+        expect.any(String),
+        expect.objectContaining({
+          type: 'PERMISSION_APPROVED',
+          permissionId: 'perm-cuid-1',
+          employeeId: 'EMP-001',
+        }),
+      );
+    });
+
+    it('harus kirim notifikasi + push saat izin ditolak (REJECTED)', async () => {
+      (mockPermissionRepository.findById as jest.Mock).mockResolvedValue(mockPermission);
+      (mockPermissionRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockPermission,
+        status: 'REJECTED',
+      });
+
+      await serviceWithNotif.updateStatus('perm-cuid-1', 'REJECTED');
+
+      expect(mockNotificationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employeeId: 'EMP-001',
+          type: 'PERMISSION_REJECTED',
+          title: 'Izin Ditolak',
+        }),
+      );
+      expect(sendPushNotification).toHaveBeenCalledWith(
+        'fcm-token-1',
+        'Izin Ditolak',
+        expect.any(String),
+        expect.objectContaining({ type: 'PERMISSION_REJECTED' }),
+      );
+    });
+
+    it('harus kirim notifikasi saat admin auto-approve saat create (APPROVED)', async () => {
+      (mockEmployeeRepository.findByEmployeeId as jest.Mock).mockResolvedValue({
+        employeeId: 'EMP-001',
+        name: 'Budi Santoso',
+        fcmToken: null,
+      });
+      (uploadPermissionPhoto as jest.Mock).mockResolvedValue(mockPermission.photoUrl);
+      (mockPermissionRepository.create as jest.Mock).mockResolvedValue({
+        ...mockPermission,
+        status: 'APPROVED',
+      });
+
+      await serviceWithNotif.createPermission(
+        {
+          employeeId: 'EMP-001',
+          date: '2026-08-06',
+          type: 'Izin',
+          reason: 'Diajukan admin',
+        },
+        mockFile,
+        true,
+      );
+
+      expect(mockNotificationRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'PERMISSION_APPROVED' }),
+      );
+    });
+
+    it('harus TIDAK kirim notifikasi saat status tetap PENDING', async () => {
+      (uploadPermissionPhoto as jest.Mock).mockResolvedValue(mockPermission.photoUrl);
+      (mockPermissionRepository.create as jest.Mock).mockResolvedValue(mockPermission);
+
+      await serviceWithNotif.createPermission(
+        {
+          employeeId: 'EMP-001',
+          date: '2026-08-06',
+          type: 'Sakit',
+          reason: 'Sakit dengan surat dokter',
+        },
+        mockFile,
+        false,
+      );
+
+      expect(mockNotificationRepository.create).not.toHaveBeenCalled();
+      expect(sendPushNotification).not.toHaveBeenCalled();
+    });
+
+    it('harus tetap menyelesaikan operasi walau notifikasi gagal (best-effort)', async () => {
+      (mockNotificationRepository.create as jest.Mock).mockRejectedValue(
+        new Error('DB error'),
+      );
+      (mockPermissionRepository.findById as jest.Mock).mockResolvedValue(mockPermission);
+      (mockPermissionRepository.updateStatus as jest.Mock).mockResolvedValue({
+        ...mockPermission,
+        status: 'APPROVED',
+      });
+
+      const result = await serviceWithNotif.updateStatus('perm-cuid-1', 'APPROVED');
+
+      expect(result.status).toBe('APPROVED');
+      expect(sendPushNotification).not.toHaveBeenCalled();
     });
   });
 });

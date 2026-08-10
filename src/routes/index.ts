@@ -104,7 +104,11 @@ export const createRouter = (): Router => {
   }
   const notificationService = new NotificationService(notificationRepository);
   const settingsService = new SettingsService(settingsRepository);
-  const permissionService = new PermissionService(permissionRepository, employeeRepository);
+  const permissionService = new PermissionService(
+    permissionRepository,
+    employeeRepository,
+    notificationRepository,
+  );
 
   const scheduleReminderService = new ScheduleReminderService(
     employeeRepository,
