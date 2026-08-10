@@ -54,4 +54,19 @@ export class PermissionRepository {
       where: { employeeId, date },
     });
   }
+
+  /** Izin APPROVED untuk sekumpulan employee pada tanggal tertentu. */
+  async findApprovedByEmployeeAndDate(
+    employeeIds: string[],
+    date: Date,
+  ): Promise<Pick<AttendancePermission, 'employeeId'>[]> {
+    return this.prisma.attendancePermission.findMany({
+      where: {
+        employeeId: { in: employeeIds },
+        date,
+        status: 'APPROVED',
+      },
+      select: { employeeId: true },
+    });
+  }
 }

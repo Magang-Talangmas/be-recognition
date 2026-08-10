@@ -1,10 +1,12 @@
-import { PrismaClient, Employee, Prisma } from "@prisma/client";
+import { PrismaClient, Employee, Prisma, WorkSchedule } from "@prisma/client";
 import { EmployeeFilterInput } from "../validators/employee.validator";
 
 export interface EmployeeListRows {
   items: Employee[];
   total: number;
 }
+
+export type EmployeeWithSchedule = Employee & { schedule: WorkSchedule | null };
 
 export class EmployeeRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -23,6 +25,16 @@ export class EmployeeRepository {
 
   async findByEmail(email: string) {
     return this.prisma.employee.findUnique({ where: { email }, include: { schedule: true } });
+  }
+
+  async findActiveWithSchedule(): Promise<EmployeeWithSchedule[]> {
+    return this.prisma.employee.findMany({
+      where: {
+        status: 'Active',
+        scheduleId: { not: null },
+      },
+      include: { schedule: true },
+    });
   }
 
   async findMany(filter: EmployeeFilterInput): Promise<EmployeeListRows> {

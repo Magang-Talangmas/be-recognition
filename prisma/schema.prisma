@@ -145,6 +145,7 @@ model WorkSchedule {
 model Notification {
   id           String      @id @default(cuid())
   attendanceId String?
+  employeeId   String? // denormalized "EMP-xxx" untuk notifikasi reminder tanpa attendance
   type         String      @default("INFO")
   title        String
   description  String
@@ -154,6 +155,7 @@ model Notification {
   attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
 
   @@index([attendanceId])
+  @@index([employeeId])
   @@map("notifications")
 }
 

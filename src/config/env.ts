@@ -49,6 +49,18 @@ const envSchema = z.object({
     .refine((val) => val === '' || val.startsWith('http'), {
       message: 'ML_REMOVE_URL harus berupa URL http(s) atau kosong',
     }),
+  SCHEDULE_REMINDER_INTERVAL_MS: z
+    .string()
+    .default('60000')
+    .transform((val) => parseInt(val, 10)),
+  SCHEDULE_REMINDER_EARLY_MINUTES: z
+    .string()
+    .default('10')
+    .transform((val) => parseInt(val, 10)),
+  SCHEDULE_REMINDER_LATE_MINUTES: z
+    .string()
+    .default('5')
+    .transform((val) => parseInt(val, 10)),
 });
 
 const parsed = envSchema.safeParse(process.env);

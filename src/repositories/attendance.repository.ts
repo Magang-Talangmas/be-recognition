@@ -34,6 +34,22 @@ export class AttendanceRepository {
     });
   }
 
+  // Ambil daftar employee yang sudah melakukan CHECK_IN pada rentang hari tertentu.
+  async findCheckInsForEmployees(
+    employeeIds: string[],
+    start: Date,
+    end: Date,
+  ): Promise<Pick<Attendance, 'employeeId'>[]> {
+    return this.prisma.attendance.findMany({
+      where: {
+        employeeId: { in: employeeIds },
+        eventType: 'CHECK_IN',
+        timestamp: { gte: start, lt: end },
+      },
+      select: { employeeId: true },
+    });
+  }
+
   // Cek apakah employee sudah memiliki record absensi pada hari yang sama (misal CHECK_IN hanya 1x per hari)
   async findTodayAttendance(
     employeeId: string,

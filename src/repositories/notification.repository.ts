@@ -17,9 +17,14 @@ export class NotificationRepository {
     const skip = (page - 1) * limit;
 
     const where: Prisma.NotificationWhereInput = {
-      attendance: {
-        employeeId: employeeId,
-      },
+      OR: [
+        { employeeId: employeeId },
+        {
+          attendance: {
+            employeeId: employeeId,
+          },
+        },
+      ],
     };
 
     const [data, total] = await Promise.all([
@@ -51,6 +56,27 @@ export class NotificationRepository {
       include: {
         attendance: true,
       },
+    });
+  }
+
+  /**
+   * Cari reminder absen yang sudah dikirim ke sekumpulan employee pada rentang waktu tertentu.
+   * Dipakai sebagai dedup agar notifikasi H-10 / H+5 tidak terkirim berulang-ulang.
+   */
+  async findRemindersForEmployees(
+    employeeIds: string[],
+    types: string[],
+    start: Date,
+    end: Date,
+  ): Promise<{ employeeId: string | null; type: string }[]> {
+    return this.prisma.notification.findMany({
+      where: {
+        employeeId: { in: employeeIds },
+        type: { in: types },
+        createdAt: { gte: start, lt: end },
+      },
+      select: { employeeId: true, type: true },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

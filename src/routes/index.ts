@@ -30,6 +30,7 @@ import { MlRegisterService } from '../services/ml-register.service';
 import { NotificationService } from '../services/notification.service';
 import { SettingsService } from '../services/settings.service';
 import { PermissionService } from '../services/permission.service';
+import { ScheduleReminderService } from '../services/schedule-reminder.service';
 
 // Controllers
 import { AttendanceController } from '../controllers/attendance.controller';
@@ -104,6 +105,17 @@ export const createRouter = (): Router => {
   const notificationService = new NotificationService(notificationRepository);
   const settingsService = new SettingsService(settingsRepository);
   const permissionService = new PermissionService(permissionRepository, employeeRepository);
+
+  const scheduleReminderService = new ScheduleReminderService(
+    employeeRepository,
+    attendanceRepository,
+    permissionRepository,
+    notificationRepository,
+    settingsRepository,
+  );
+  if (env.NODE_ENV !== 'test') {
+    scheduleReminderService.start();
+  }
 
   const attendanceController = new AttendanceController(attendanceService);
   const employeeController = new EmployeeController(
