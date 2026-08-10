@@ -231,6 +231,8 @@ export class AttendanceRepository {
           ? {
               id: permission.id,
               type: permission.type,
+              reason: permission.reason,
+              photoUrl: permission.photoUrl,
               status: permission.status,
             }
           : null,

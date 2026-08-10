@@ -71,6 +71,8 @@ export interface PaginatedAttendance {
 export interface DailyPermissionInfo {
   id: string;
   type: string;
+  reason: string;
+  photoUrl: string | null;
   status: string;
 }
 
