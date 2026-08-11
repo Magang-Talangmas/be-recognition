@@ -129,9 +129,56 @@ export class LiveMonitoringService {
   /**
    * Mencatat hasil pengenalan wajah (dari ML engine / /cctv/sync),
    * menyimpan notifikasi, lalu broadcast lewat SSE.
+   *
+   * Aturan duplikasi per hari (Asia/Jakarta):
+   *  - Status dari ML selalu "Unknown"
+   *  - Jika employeeId sudah ada hari ini dengan status Unknown atau Verified → skip
+   *  - Jika employeeId sudah ada hari ini dengan status Rejected → boleh POST lagi
+   *  - Jika employeeId null (wajah tak dikenal tanpa ID) → tidak ada cek, langsung insert
    */
   async recordRecognition(input: RecordRecognitionInput): Promise<LiveRecognitionDTO> {
     const status = input.status ?? this.resolveStatus(input);
+    const now = input.timestamp ? new Date(input.timestamp) : new Date();
+
+    // Cek duplikasi harian hanya jika employeeId diketahui
+    if (input.employeeId) {
+      const existingToday = await this.repository
+        .findTodayRecognitionByEmployeeId(input.employeeId, now)
+        .catch((err) => {
+          logger.error('Gagal cek duplikasi recognition harian', {
+            employeeId: input.employeeId,
+            error: err instanceof Error ? err.message : 'unknown',
+          });
+          return null;
+        });
+
+      if (existingToday) {
+        const existingStatus = existingToday.status as RecognitionStatus;
+
+        if (existingStatus === 'Unknown' || existingStatus === 'Verified') {
+          // Sudah ada record aktif hari ini, skip
+          logger.info('Recognition diabaikan (sudah ada record Unknown/Verified hari ini)', {
+            employeeId: input.employeeId,
+            existingRecognitionId: existingToday.id,
+            existingStatus,
+          });
+          // Kembalikan DTO dari record yang sudah ada tanpa insert baru
+          const camera = await this.repository.findCameraByCameraId(input.cameraId).catch(() => null);
+          const cameraName = camera?.name ?? input.cameraId;
+          const employeeName = await this.repository
+            .findEmployeeNameByEmployeeId(input.employeeId)
+            .catch(() => null);
+          return toRecognitionDTO(existingToday, cameraName, employeeName);
+        }
+
+        // Status Rejected → boleh POST lagi (lanjut ke bawah)
+        logger.info('Recognition dilanjutkan (record sebelumnya berstatus Rejected)', {
+          employeeId: input.employeeId,
+          existingRecognitionId: existingToday.id,
+        });
+      }
+    }
+
     const camera = await this.repository.findCameraByCameraId(input.cameraId).catch(() => null);
     const employeeName = input.employeeId
       ? await this.repository.findEmployeeNameByEmployeeId(input.employeeId)

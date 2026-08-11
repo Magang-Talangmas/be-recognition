@@ -85,15 +85,13 @@ export class MlDetectService {
         continue;
       }
 
-      const verified =
-        identity !== 'Unknown' &&
-        detail.similarity >= env.ML_DETECT_SIMILARITY_THRESHOLD;
-
+      // Status dari ML engine ke recognition_events selalu "Unknown".
+      // Perubahan ke "Verified" atau "Rejected" dilakukan manual oleh admin.
       const input: RecordRecognitionInput = {
         employeeId: identity === 'Unknown' ? undefined : identity,
         cameraId: env.ML_DETECT_CAMERA_ID,
         confidence: Math.max(0, Math.min(100, detail.similarity)),
-        status: verified ? 'Verified' : 'Unknown',
+        status: 'Unknown',
         timestamp: new Date().toISOString(),
       };
 
