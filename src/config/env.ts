@@ -18,6 +18,24 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().min(1, 'SUPABASE_URL wajib diisi'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY wajib diisi'),
   SUPABASE_STORAGE_BUCKET: z.string().min(1, 'SUPABASE_STORAGE_BUCKET wajib diisi'),
+  FIREBASE_SERVICE_ACCOUNT: z
+    .string()
+    .default('')
+    .superRefine((val, ctx) => {
+      if (val && !val.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'FIREBASE_SERVICE_ACCOUNT tidak boleh hanya spasi' });
+      }
+      if (val.trim()) {
+        try {
+          JSON.parse(val);
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'FIREBASE_SERVICE_ACCOUNT harus berupa JSON Service Account yang valid',
+          });
+        }
+      }
+    }),
   ML_DETECT_URL: z.string().default('http://192.168.77.171:8088/detect'),
   ML_DETECT_INTERVAL_MS: z
     .string()

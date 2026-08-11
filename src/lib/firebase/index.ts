@@ -1,25 +1,26 @@
-import { initializeApp, cert } from 'firebase-admin/app';
+import { initializeApp, cert, ServiceAccount, App } from 'firebase-admin/app';
 import { getMessaging, Message } from 'firebase-admin/messaging';
+import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 
-let isFirebaseInitialized = false;
+let app: App | null = null;
 
 try {
-  // If user provides FIREBASE_SERVICE_ACCOUNT env string (JSON representation)
-  // or default credentials, try initializing it.
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    initializeApp({
+  if (env.FIREBASE_SERVICE_ACCOUNT.trim()) {
+    const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as ServiceAccount;
+    app = initializeApp({
       credential: cert(serviceAccount),
     });
-    isFirebaseInitialized = true;
     logger.info('Firebase Admin terinisialisasi');
   } else {
-    logger.warn('FIREBASE_SERVICE_ACCOUNT tidak ditemukan di env, fitur Push Notification dinonaktifkan.');
+    logger.warn('FIREBASE_SERVICE_ACCOUNT kosong, fitur Push Notification dinonaktifkan.');
   }
 } catch (error) {
+  app = null;
   logger.error('Gagal menginisialisasi Firebase Admin', error);
 }
+
+export const isFirebaseReady = (): boolean => app !== null;
 
 export const sendPushNotification = async (
   token: string,
@@ -27,7 +28,7 @@ export const sendPushNotification = async (
   body: string,
   data?: { [key: string]: string }
 ): Promise<void> => {
-  if (!isFirebaseInitialized) {
+  if (!isFirebaseReady()) {
     logger.warn(`Push Notification dilewati (Firebase tidak aktif). Tujuan: ${token}`);
     return;
   }
