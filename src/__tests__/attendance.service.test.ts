@@ -67,7 +67,7 @@ describe('AttendanceService', () => {
     service = new AttendanceService(
       mockAttendanceRepository,
       mockEmployeeRepository,
-      { findByDay: jest.fn().mockResolvedValue(null) } as any, // mockScheduleRepository
+      { findByDay: jest.fn().mockResolvedValue(null), findById: jest.fn().mockResolvedValue(null) } as any, // mockScheduleRepository
       mockRedis as never,
     );
   });
@@ -75,6 +75,7 @@ describe('AttendanceService', () => {
   describe('processAttendance', () => {
     describe('Daily Attendance Check (Single event per day)', () => {
       it('harus MENGABAIKAN attendance jika employee sudah memiliki catatan absensi pada hari ini', async () => {
+        mockRedis.get.mockResolvedValue(null);
         const existingTodayRecord = { id: 'att-today-1', employeeId: 'EMP001', eventType: 'CHECK_IN' };
         (mockAttendanceRepository.findTodayAttendance as jest.Mock).mockResolvedValue(existingTodayRecord);
 
@@ -86,12 +87,13 @@ describe('AttendanceService', () => {
           expect.any(Date),
         );
         expect(mockAttendanceRepository.create).not.toHaveBeenCalled();
-        expect(mockRedis.get).not.toHaveBeenCalled();
+        expect(mockRedis.set).not.toHaveBeenCalled();
       });
     });
 
     describe('Idempotency Check (event_id)', () => {
       it('harus MENGABAIKAN jika event_id sudah ada di database', async () => {
+        mockRedis.get.mockResolvedValue(null);
         const existingRecord = { id: 'att-existing', externalEventId: 'uuid-123' };
         (mockAttendanceRepository.findByExternalEventId as jest.Mock).mockResolvedValue(existingRecord);
 
@@ -101,7 +103,7 @@ describe('AttendanceService', () => {
         });
 
         expect(mockAttendanceRepository.findByExternalEventId).toHaveBeenCalledWith('uuid-123');
-        expect(mockRedis.get).not.toHaveBeenCalled();
+        expect(mockRedis.set).not.toHaveBeenCalled();
         expect(mockAttendanceRepository.create).not.toHaveBeenCalled();
       });
 
@@ -204,7 +206,7 @@ describe('AttendanceService', () => {
         (mockAttendanceRepository.create as jest.Mock).mockResolvedValue({});
         mockRedis.set.mockRejectedValue(new Error('Redis connection refused'));
 
-        await expect(service.processAttendance(baseAttendanceData)).resolves.toBeUndefined();
+        await expect(service.processAttendance(baseAttendanceData)).resolves.toBe(false);
         expect(mockAttendanceRepository.create).toHaveBeenCalledTimes(1);
       });
 
@@ -214,7 +216,7 @@ describe('AttendanceService', () => {
         (mockAttendanceRepository.create as jest.Mock).mockResolvedValue({});
         mockRedis.set.mockResolvedValue('OK');
 
-        await expect(service.processAttendance(baseAttendanceData)).resolves.toBeUndefined();
+        await expect(service.processAttendance(baseAttendanceData)).resolves.toBe(false);
         expect(mockAttendanceRepository.create).toHaveBeenCalledTimes(1);
       });
 

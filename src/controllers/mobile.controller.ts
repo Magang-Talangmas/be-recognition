@@ -129,7 +129,7 @@ export class MobileController {
       }
       const photoUrl = await uploadCheckinPhoto(files[0], req.user.id);
 
-      await this.attendanceService.processAttendance({
+      const isLate = await this.attendanceService.processAttendance({
         externalEventId: `mobile-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         employeeId: req.user.id,
         cameraId: 'mobile-app',
@@ -142,7 +142,11 @@ export class MobileController {
       res.status(HTTP_STATUS.OK).json({
         success: true,
         message: 'Absensi berhasil dicatat',
-        data: null,
+        data: {
+          eventType,
+          isLate: eventType === 'CHECK_IN' ? (isLate ?? false) : undefined,
+          timestamp: new Date().toISOString(),
+        },
       });
     } catch (error) {
       next(error);

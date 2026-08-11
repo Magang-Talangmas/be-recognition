@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import { WorkSchedule } from '@prisma/client';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -47,7 +48,7 @@ export class AttendanceService {
     private readonly liveMonitoringRepository?: LiveMonitoringRepository,
   ) { }
 
-  async processAttendance(data: ProcessAttendanceInput): Promise<void> {
+  async processAttendance(data: ProcessAttendanceInput): Promise<boolean | undefined> {
     const redisKey = buildAttendanceDebounceKey(data.employeeId, data.eventType);
     let cooldownExists: string | null = null;
 
@@ -130,10 +131,20 @@ export class AttendanceService {
       const currentDay = formatter.format(targetDate);
       const dayName = currentDay.charAt(0).toUpperCase() + currentDay.slice(1);
 
-      const schedule = await this.scheduleRepository.findByDay(dayName).catch((err) => {
-        logger.error('Error fetch schedule for lateness check', err);
-        return null;
-      });
+      // Prioritas jadwal personal employee; fallback ke jadwal berdasarkan hari
+      let schedule: WorkSchedule | null = null;
+      if (employee.scheduleId) {
+        schedule = await this.scheduleRepository.findById(employee.scheduleId).catch((err) => {
+          logger.error('Error fetch personal schedule for lateness check', err);
+          return null;
+        });
+      }
+      if (!schedule) {
+        schedule = await this.scheduleRepository.findByDay(dayName).catch((err) => {
+          logger.error('Error fetch schedule for lateness check', err);
+          return null;
+        });
+      }
 
       if (schedule) {
         const [hourStr, minStr] = schedule.checkInTime.split(':');
@@ -234,6 +245,8 @@ export class AttendanceService {
         error: redisError instanceof Error ? redisError.message : 'unknown',
       });
     }
+
+    return isLate;
   }
 
   async updateConfirmationStatus(
