@@ -30,7 +30,7 @@ describe('MlDetectService', () => {
     jest.useRealTimers();
   });
 
-  it('harus merekam recognition Verified untuk nama yang dikenali', async () => {
+  it('harus merekam recognition Unknown untuk nama yang dikenali (status selalu Unknown dari ML)', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -49,10 +49,11 @@ describe('MlDetectService', () => {
         employeeId: 'muchPanjiLaksono',
         cameraId: 'CAM-05',
         confidence: 12.28,
-        status: 'Verified',
+        status: 'Unknown', // ML selalu kirim Unknown, status Verified diputuskan BE/admin
       }),
     );
   });
+
 
   it('harus merekam Unknown tanpa employeeId', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({

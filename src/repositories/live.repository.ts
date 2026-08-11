@@ -1,3 +1,10 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import { PrismaClient, Camera, Notification, RecognitionEvent, Prisma } from '@prisma/client';
 import {
   NotificationFilter,
@@ -98,31 +105,22 @@ export class LiveMonitoringRepository {
   }
 
   /**
-   * Cek apakah sudah ada record recognition_events untuk employeeId tertentu pada hari ini.
-   * Digunakan untuk mencegah duplikasi absensi pada hari yang sama.
-   * @param employeeId - ID karyawan
-   * @param targetDate - tanggal referensi (default: hari ini, zona Asia/Jakarta)
+   * Cari record recognition_events untuk employeeId pada hari yang sama (WIB).
+   * Hanya cek record dengan status 'Unknown' atau 'Verified' (Rejected boleh POST ulang).
+   * Return null jika tidak ada duplikat.
    */
-  async findTodayRecognitionByEmployeeId(
+  async findTodayRecognitionByEmployee(
     employeeId: string,
-    targetDate: Date = new Date(),
+    date: Date,
   ): Promise<RecognitionEvent | null> {
-    // Gunakan zona Asia/Jakarta: ambil tanggal sebagai string "YYYY-MM-DD"
-    const jakartaOffset = 7 * 60; // UTC+7 dalam menit
-    const localMs = targetDate.getTime() + jakartaOffset * 60 * 1000;
-    const localDate = new Date(localMs);
-    const dayStr = localDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
-
-    const startOfDay = new Date(`${dayStr}T00:00:00.000+07:00`);
-    const endOfDay = new Date(`${dayStr}T23:59:59.999+07:00`);
+    const startOfDay = dayjs(date).tz('Asia/Jakarta').startOf('day').toDate();
+    const endOfDay   = dayjs(date).tz('Asia/Jakarta').endOf('day').toDate();
 
     return this.prisma.recognitionEvent.findFirst({
       where: {
         employeeId,
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        status: { in: ['Unknown', 'Verified'] },
+        createdAt: { gte: startOfDay, lte: endOfDay },
       },
       orderBy: { createdAt: 'desc' },
     });

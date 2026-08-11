@@ -23,6 +23,7 @@ const mockLiveRepository = {
   markAllNotificationsRead: jest.fn(),
   findCameraByCameraId: jest.fn(),
   findEmployeeNameByEmployeeId: jest.fn(),
+  findTodayRecognitionByEmployee: jest.fn(),
 } as unknown as jest.Mocked<LiveMonitoringRepository>;
 
 const mockCamera = {
@@ -178,72 +179,112 @@ describe('LiveMonitoringService', () => {
   });
 
   describe('recordRecognition', () => {
-    it('Verified: menyimpan event, notifikasi, dan publish event recognition', async () => {
+    beforeEach(() => {
+      // Default: tidak ada duplikat di hari ini
+      (mockLiveRepository.findTodayRecognitionByEmployee as jest.Mock).mockResolvedValue(null);
+    });
+
+    it('harus selalu menyimpan dengan status Unknown (bukan Verified), meski input status Verified', async () => {
       (mockLiveRepository.findCameraByCameraId as jest.Mock).mockResolvedValue(mockCamera);
       (mockLiveRepository.findEmployeeNameByEmployeeId as jest.Mock).mockResolvedValue('Andi Pratama');
-      (mockLiveRepository.createRecognition as jest.Mock).mockResolvedValue(mockRecognition);
+      (mockLiveRepository.createRecognition as jest.Mock).mockResolvedValue({
+        ...mockRecognition,
+        status: 'Unknown',
+      });
       (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
 
       const result = await service.recordRecognition({
         employeeId: 'EMP-001',
         cameraId: 'CAM-01',
         confidence: 96.4,
+        status: 'Verified', // Input status Verified dari ML — harus diabaikan
       });
 
+      // Status yang disimpan ke DB harus selalu Unknown
       expect(mockLiveRepository.createRecognition).toHaveBeenCalledWith(
         expect.objectContaining({
           employeeId: 'EMP-001',
           cameraId: 'CAM-01',
           confidence: 96.4,
-          status: 'Verified',
+          status: 'Unknown',
         }),
       );
-      expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'recognition' }),
-      );
-      expect(liveSseHub.publish).toHaveBeenCalledWith(
-        'recognition',
-        expect.objectContaining({ status: 'Verified', cameraName: 'Pintu Masuk' }),
-      );
-      expect(result.status).toBe('Verified');
+      // SSE publish harus 'unknown', bukan 'recognition'
+      expect(liveSseHub.publish).toHaveBeenCalledWith('unknown', expect.any(Object));
+      // Hasil tidak null
+      expect(result).not.toBeNull();
     });
 
-    it('Unknown: publish event unknown saat employeeId null', async () => {
+    it('harus publish event unknown saat employeeId null (wajah tidak dikenal)', async () => {
       (mockLiveRepository.findCameraByCameraId as jest.Mock).mockResolvedValue(mockCamera);
       (mockLiveRepository.createRecognition as jest.Mock).mockResolvedValue({
         ...mockRecognition,
         employeeId: null,
         status: 'Unknown',
       });
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
 
       await service.recordRecognition({
         cameraId: 'CAM-01',
         confidence: 41.3,
       });
 
+      // Tidak ada guard untuk employeeId null
+      expect(mockLiveRepository.findTodayRecognitionByEmployee).not.toHaveBeenCalled();
       expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'unknown' }),
       );
       expect(liveSseHub.publish).toHaveBeenCalledWith('unknown', expect.any(Object));
     });
 
-    it('menurunkan status Unknown jika confidence di bawah threshold', async () => {
+    it('harus mengembalikan null jika employee sudah tercatat hari ini dengan status Unknown', async () => {
+      const existingRecord = { ...mockRecognition, status: 'Unknown' };
+      (mockLiveRepository.findTodayRecognitionByEmployee as jest.Mock).mockResolvedValue(existingRecord);
+
+      const result = await service.recordRecognition({
+        employeeId: 'EMP-001',
+        cameraId: 'CAM-01',
+        confidence: 90,
+      });
+
+      expect(result).toBeNull();
+      expect(mockLiveRepository.createRecognition).not.toHaveBeenCalled();
+      expect(liveSseHub.publish).not.toHaveBeenCalled();
+    });
+
+    it('harus mengembalikan null jika employee sudah tercatat hari ini dengan status Verified', async () => {
+      const existingRecord = { ...mockRecognition, status: 'Verified' };
+      (mockLiveRepository.findTodayRecognitionByEmployee as jest.Mock).mockResolvedValue(existingRecord);
+
+      const result = await service.recordRecognition({
+        employeeId: 'EMP-001',
+        cameraId: 'CAM-01',
+        confidence: 90,
+      });
+
+      expect(result).toBeNull();
+      expect(mockLiveRepository.createRecognition).not.toHaveBeenCalled();
+    });
+
+    it('harus mengizinkan POST ulang jika status sebelumnya Rejected (findTodayRecognitionByEmployee return null)', async () => {
+      // Guard hanya cek Unknown/Verified — jika sebelumnya Rejected, query return null
+      (mockLiveRepository.findTodayRecognitionByEmployee as jest.Mock).mockResolvedValue(null);
       (mockLiveRepository.findCameraByCameraId as jest.Mock).mockResolvedValue(mockCamera);
       (mockLiveRepository.findEmployeeNameByEmployeeId as jest.Mock).mockResolvedValue('Andi Pratama');
       (mockLiveRepository.createRecognition as jest.Mock).mockResolvedValue({
         ...mockRecognition,
         status: 'Unknown',
       });
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
 
-      await service.recordRecognition({
+      const result = await service.recordRecognition({
         employeeId: 'EMP-001',
         cameraId: 'CAM-01',
-        confidence: 30,
+        confidence: 88,
       });
 
-      expect(mockLiveRepository.createRecognition).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'Unknown' }),
-      );
+      expect(result).not.toBeNull();
+      expect(mockLiveRepository.createRecognition).toHaveBeenCalled();
     });
   });
 

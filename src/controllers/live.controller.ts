@@ -134,6 +134,16 @@ export class LiveMonitoringController {
       const body = parseAsUnprocessable(recordRecognitionSchema, req.body);
       const data = await this.liveMonitoringService.recordRecognition(body);
 
+      if (data === null) {
+        // Duplikat hari ini — employee sudah ada dengan status Unknown/Verified
+        res.status(HTTP_STATUS.CONFLICT).json({
+          success: false,
+          message: 'Recognition diabaikan: employee ini sudah tercatat hari ini (status Unknown/Verified). POST ulang hanya bisa jika status sebelumnya Rejected.',
+          data: null,
+        });
+        return;
+      }
+
       const response: ApiSuccessResponse<LiveRecognitionDTO> = {
         success: true,
         message: 'Hasil pengenalan tersimpan',

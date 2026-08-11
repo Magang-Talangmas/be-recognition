@@ -5,7 +5,7 @@ import timezone from 'dayjs/plugin/timezone';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-import { Camera } from '@prisma/client';
+import { Camera, Notification, RecognitionEvent } from '@prisma/client';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { liveSseHub } from '../lib/live/sse-hub';
 import { logger } from '../config/logger';
@@ -24,11 +24,6 @@ import {
   RecordRecognitionInput,
   SystemNotificationInput,
 } from '../interfaces/live.interface';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RecognitionEvent = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Notification = any;
 
 function toTimeString(date: Date): string {
   return dayjs(date).tz('Asia/Jakarta').format('HH:mm:ss');
@@ -130,56 +125,34 @@ export class LiveMonitoringService {
   }
 
   /**
-   * Mencatat hasil pengenalan wajah (dari ML engine / /cctv/sync),
-   * menyimpan notifikasi, lalu broadcast lewat SSE.
+   * Mencatat hasil pengenalan wajah dari ML engine.
    *
-   * Aturan duplikasi per hari (Asia/Jakarta):
-   *  - Status dari ML selalu "Unknown"
-   *  - Jika employeeId sudah ada hari ini dengan status Unknown atau Verified → skip
-   *  - Jika employeeId sudah ada hari ini dengan status Rejected → boleh POST lagi
-   *  - Jika employeeId null (wajah tak dikenal tanpa ID) → tidak ada cek, langsung insert
+   * Aturan bisnis:
+   * 1. Status dari ML SELALU dipaksa menjadi 'Unknown' — ML tidak berhak set 'Verified'.
+   * 2. Jika employeeId sudah ada di recognition_events hari ini dengan status
+   *    'Unknown' atau 'Verified' → tolak (return null → controller 409 Conflict).
+   * 3. Jika status sebelumnya adalah 'Rejected' → insert baru diperbolehkan.
+   * 4. Jika employeeId null (wajah tidak dikenal) → selalu insert, tidak ada guard.
    */
-  async recordRecognition(input: RecordRecognitionInput): Promise<LiveRecognitionDTO> {
-    // Status di recognition_events selalu "Unknown" — perubahan ke Verified/Rejected dilakukan manual oleh admin.
+  async recordRecognition(input: RecordRecognitionInput): Promise<LiveRecognitionDTO | null> {
+    // [Aturan 1] Status dari ML selalu Unknown — abaikan field status dari input
     const status: RecognitionStatus = 'Unknown';
-    const now = input.timestamp ? new Date(input.timestamp) : new Date();
 
-    // Cek duplikasi harian hanya jika employeeId diketahui
+    // [Aturan 2 & 3] Guard duplikasi per hari hanya untuk employee yang dikenali
     if (input.employeeId) {
-      const existingToday = await this.repository
-        .findTodayRecognitionByEmployeeId(input.employeeId, now)
-        .catch((err) => {
-          logger.error('Gagal cek duplikasi recognition harian', {
-            employeeId: input.employeeId,
-            error: err instanceof Error ? err.message : 'unknown',
-          });
-          return null;
-        });
+      const today = input.timestamp ? new Date(input.timestamp) : new Date();
+      const existing = await this.repository.findTodayRecognitionByEmployee(
+        input.employeeId,
+        today,
+      );
 
-      if (existingToday) {
-        const existingStatus = existingToday.status as RecognitionStatus;
-
-        if (existingStatus === 'Unknown' || existingStatus === 'Verified') {
-          // Sudah ada record aktif hari ini, skip
-          logger.info('Recognition diabaikan (sudah ada record Unknown/Verified hari ini)', {
-            employeeId: input.employeeId,
-            existingRecognitionId: existingToday.id,
-            existingStatus,
-          });
-          // Kembalikan DTO dari record yang sudah ada tanpa insert baru
-          const camera = await this.repository.findCameraByCameraId(input.cameraId).catch(() => null);
-          const cameraName = camera?.name ?? input.cameraId;
-          const employeeName = await this.repository
-            .findEmployeeNameByEmployeeId(input.employeeId)
-            .catch(() => null);
-          return toRecognitionDTO(existingToday, cameraName, employeeName);
-        }
-
-        // Status Rejected → boleh POST lagi (lanjut ke bawah)
-        logger.info('Recognition dilanjutkan (record sebelumnya berstatus Rejected)', {
+      if (existing) {
+        logger.info('Recognition diabaikan — duplikat hari ini (status Unknown/Verified)', {
           employeeId: input.employeeId,
-          existingRecognitionId: existingToday.id,
+          existingId: existing.id,
+          existingStatus: existing.status,
         });
+        return null; // Controller akan kembalikan 409 Conflict
       }
     }
 
@@ -201,8 +174,8 @@ export class LiveMonitoringService {
 
     const notification = await this.safeCreateNotification({
       type: 'unknown',
-      title: 'Wajah Tidak Dikenal',
-      description: `Wajah unknown terdeteksi di ${cameraName} (confidence ${input.confidence.toFixed(1)}%).`,
+      title: 'Wajah Tidak Dikenal / Deteksi Baru',
+      description: `${employeeName ?? 'Wajah'} terdeteksi di ${cameraName} (confidence ${input.confidence.toFixed(1)}%).`,
     });
 
     const dto = toRecognitionDTO(event, cameraName, employeeName, notification?.id ?? null);
@@ -290,7 +263,6 @@ export class LiveMonitoringService {
     liveSseHub.publish('system', dto);
     return dto;
   }
-
 
   private async safeCreateNotification(data: {
     type: LiveNotificationType;
