@@ -5,7 +5,7 @@ import timezone from 'dayjs/plugin/timezone';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-import { Camera, Notification, RecognitionEvent } from '@prisma/client';
+import { Camera } from '@prisma/client';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { liveSseHub } from '../lib/live/sse-hub';
 import { logger } from '../config/logger';
@@ -25,7 +25,10 @@ import {
   SystemNotificationInput,
 } from '../interfaces/live.interface';
 
-const RECOGNITION_CONFIDENCE_THRESHOLD = 60;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RecognitionEvent = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Notification = any;
 
 function toTimeString(date: Date): string {
   return dayjs(date).tz('Asia/Jakarta').format('HH:mm:ss');
@@ -137,7 +140,8 @@ export class LiveMonitoringService {
    *  - Jika employeeId null (wajah tak dikenal tanpa ID) → tidak ada cek, langsung insert
    */
   async recordRecognition(input: RecordRecognitionInput): Promise<LiveRecognitionDTO> {
-    const status = input.status ?? this.resolveStatus(input);
+    // Status di recognition_events selalu "Unknown" — perubahan ke Verified/Rejected dilakukan manual oleh admin.
+    const status: RecognitionStatus = 'Unknown';
     const now = input.timestamp ? new Date(input.timestamp) : new Date();
 
     // Cek duplikasi harian hanya jika employeeId diketahui
@@ -195,22 +199,14 @@ export class LiveMonitoringService {
 
     const cameraName = camera?.name ?? input.cameraId;
 
-    const notification = await this.safeCreateNotification(
-      status === 'Verified'
-        ? {
-            type: 'recognition',
-            title: 'Pengenalan Berhasil',
-            description: `${employeeName ?? 'Karyawan'} diverifikasi di ${cameraName} (confidence ${input.confidence.toFixed(1)}%).`,
-          }
-        : {
-            type: 'unknown',
-            title: 'Wajah Tidak Dikenal',
-            description: `Wajah unknown terdeteksi di ${cameraName} (confidence ${input.confidence.toFixed(1)}%).`,
-          },
-    );
+    const notification = await this.safeCreateNotification({
+      type: 'unknown',
+      title: 'Wajah Tidak Dikenal',
+      description: `Wajah unknown terdeteksi di ${cameraName} (confidence ${input.confidence.toFixed(1)}%).`,
+    });
 
     const dto = toRecognitionDTO(event, cameraName, employeeName, notification?.id ?? null);
-    liveSseHub.publish(status === 'Verified' ? 'recognition' : 'unknown', dto);
+    liveSseHub.publish('unknown', dto);
 
     return dto;
   }
@@ -295,15 +291,6 @@ export class LiveMonitoringService {
     return dto;
   }
 
-  private resolveStatus(input: RecordRecognitionInput): RecognitionStatus {
-    if (input.status === 'Verified' || input.status === 'Unknown') {
-      return input.status;
-    }
-    if (input.employeeId && input.confidence >= RECOGNITION_CONFIDENCE_THRESHOLD) {
-      return 'Verified';
-    }
-    return 'Unknown';
-  }
 
   private async safeCreateNotification(data: {
     type: LiveNotificationType;
