@@ -75,7 +75,7 @@ Dokumentasi resmi seluruh *endpoint* Backend untuk tim **Frontend (Web Admin)** 
 
 > 💡 **Headers Wajib**: `Authorization: Bearer <TOKEN_JWT_MOBILE>`
 
-### A. Profil Karyawan
+### A. Profil Karyawan (Read Only)
 - **URL**: `/mobile/profile`
 - **Method**: `GET`
 - **Response (200 OK)**:
@@ -84,19 +84,37 @@ Dokumentasi resmi seluruh *endpoint* Backend untuk tim **Frontend (Web Admin)** 
     "success": true,
     "message": "Profil berhasil diambil",
     "data": {
-      "id": "clx...",
+      "id": "cmsim943c0001cyyy92u0sxxk",
       "employeeId": "EMP001",
       "name": "Budi Santoso",
-      "email": "budi@test.com",
-      "department": "IT Support",
-      "position": "Software Engineer",
+      "email": "budi@gmail.com",
+      "department": "Engineering",
+      "position": "Developer",
       "faceRegistered": true,
-      "photos": ["https://..."]
+      "photos": []
     }
   }
   ```
 
-### B. Jadwal Hari Ini
+### B. Ubah Password (Change Password)
+- **URL**: `/mobile/change-password`
+- **Method**: `POST` / `PATCH`
+- **Request Body (JSON)**:
+  ```json
+  {
+    "currentPassword": "akmal123",
+    "newPassword": "newpassword123"
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "message": "Password berhasil diubah"
+  }
+  ```
+
+### C. Jadwal Hari Ini
 - **URL**: `/mobile/schedule/today`
 - **Method**: `GET`
 - **Response (200 OK)**:

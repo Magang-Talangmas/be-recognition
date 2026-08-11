@@ -7,7 +7,7 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost:8000/api/v1",
+      "value": "https://f070-36-70-110-14.ngrok-free.app/api/v1",
       "type": "string"
     },
     {
@@ -35,7 +35,10 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -43,8 +46,14 @@
             },
             "url": {
               "raw": "{{base_url}}/mobile/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["mobile", "auth", "login"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mobile",
+                "auth",
+                "login"
+              ]
             }
           }
         },
@@ -53,16 +62,24 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"adminpassword\"\n}"
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"admin123\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             }
           }
         }
@@ -76,12 +93,20 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mobile_token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/mobile/profile",
-              "host": ["{{base_url}}"],
-              "path": ["mobile", "profile"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mobile",
+                "profile"
+              ]
             }
           }
         },
@@ -90,12 +115,21 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mobile_token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/mobile/schedule/today",
-              "host": ["{{base_url}}"],
-              "path": ["mobile", "schedule", "today"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mobile",
+                "schedule",
+                "today"
+              ]
             }
           }
         },
@@ -104,15 +138,30 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mobile_token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/mobile/attendance/history?page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["mobile", "attendance", "history"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mobile",
+                "attendance",
+                "history"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             }
           }
@@ -122,15 +171,29 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mobile_token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/mobile/notifications?page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["mobile", "notifications"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mobile",
+                "notifications"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             }
           }
@@ -140,14 +203,27 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mobile_token}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mobile_token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/mobile/notifications/:id/read",
-              "host": ["{{base_url}}"],
-              "path": ["mobile", "notifications", ":id", "read"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "mobile",
+                "notifications",
+                ":id",
+                "read"
+              ],
               "variable": [
-                { "key": "id", "value": "NOTIFICATION_ID_HERE" }
+                {
+                  "key": "id",
+                  "value": "NOTIFICATION_ID_HERE"
+                }
               ]
             }
           }
@@ -162,8 +238,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "x-api-key", "value": "{{ml_api_key}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-api-key",
+                "value": "{{ml_api_key}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -171,8 +253,12 @@
             },
             "url": {
               "raw": "{{base_url}}/attendance",
-              "host": ["{{base_url}}"],
-              "path": ["attendance"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "attendance"
+              ]
             }
           }
         }

@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { AttendanceService } from '../services/attendance.service';
-import { mobileLoginSchema, deviceTokenSchema } from '../validators/mobile.validator';
+import { mobileLoginSchema, deviceTokenSchema, changePasswordSchema } from '../validators/mobile.validator';
 import { env } from '../config/env';
 import { HTTP_STATUS } from '../constants/http.constants';
 import { UnauthorizedError } from '../errors/UnauthorizedError';
@@ -242,6 +242,50 @@ export class MobileController {
         success: true,
         message: 'Jadwal hari ini berhasil diambil',
         data: schedule,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  changePassword = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user || req.user.role !== 'EMPLOYEE') {
+        throw new UnauthorizedError('Akses ditolak');
+      }
+
+      const data = changePasswordSchema.parse(req.body);
+
+      const employee = await this.employeeRepository.findByEmployeeId(req.user.id);
+      if (!employee) {
+        throw new NotFoundError('Employee tidak ditemukan');
+      }
+
+      if (!employee.password) {
+        throw new ValidationError('Password karyawan belum di-set');
+      }
+
+      const isPasswordValid = await bcrypt.compare(data.currentPassword, employee.password);
+      if (!isPasswordValid) {
+        throw new ValidationError('Password saat ini tidak sesuai');
+      }
+
+      const hashedPassword = await bcrypt.hash(data.newPassword, 10);
+      await this.employeeRepository.update(employee.id, {
+        password: hashedPassword,
+      });
+
+      logger.info('Password employee berhasil diubah via mobile', {
+        employeeId: employee.employeeId,
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Password berhasil diubah',
       });
     } catch (error) {
       next(error);

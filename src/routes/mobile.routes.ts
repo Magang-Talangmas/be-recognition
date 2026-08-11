@@ -25,6 +25,15 @@ export const createMobileRouter = (
   router.get('/profile', authMiddleware, requireRole('EMPLOYEE'), mobileController.getProfile);
 
   /**
+   * @route   POST /api/v1/mobile/change-password
+   * @desc    Ubah password employee yang login
+   * @access  EMPLOYEE
+   */
+  router.post('/change-password', authMiddleware, requireRole('EMPLOYEE'), mobileController.changePassword);
+  router.post('/profile/change-password', authMiddleware, requireRole('EMPLOYEE'), mobileController.changePassword);
+  router.patch('/change-password', authMiddleware, requireRole('EMPLOYEE'), mobileController.changePassword);
+
+  /**
    * @route   POST /api/v1/mobile/attendance
    * @desc    Melakukan absensi via mobile app (Face Scan - Menerima form-data gambar)
    * @access  EMPLOYEE
