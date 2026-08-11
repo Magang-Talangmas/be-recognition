@@ -137,7 +137,8 @@ export class LiveMonitoringService {
    *  - Jika employeeId null (wajah tak dikenal tanpa ID) → tidak ada cek, langsung insert
    */
   async recordRecognition(input: RecordRecognitionInput): Promise<LiveRecognitionDTO> {
-    const status = input.status ?? this.resolveStatus(input);
+    // Status di recognition_events selalu "Unknown" — perubahan ke Verified/Rejected dilakukan manual oleh admin.
+    const status: RecognitionStatus = 'Unknown';
     const now = input.timestamp ? new Date(input.timestamp) : new Date();
 
     // Cek duplikasi harian hanya jika employeeId diketahui
