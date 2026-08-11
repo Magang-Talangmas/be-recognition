@@ -1,4 +1,4 @@
-import { PrismaClient, Attendance } from '@prisma/client';
+import { PrismaClient, Attendance, Employee } from '@prisma/client';
 import {
   AttendanceCreateInput,
   AttendanceFilter,
@@ -22,8 +22,8 @@ export class AttendanceRepository {
         timestamp: data.timestamp,
         confirmationStatus: (data.confirmationStatus ?? 'PENDING') as any,
         isLate: data.isLate,
-        photoUrl: data.photoUrl,
-      },
+        photoUrl: data.photoUrl ?? null,
+      } as any,
     });
   }
 
@@ -73,7 +73,7 @@ export class AttendanceRepository {
   }
 
   async findById(id: string): Promise<AttendanceWithEmployee | null> {
-    return this.prisma.attendance.findUnique({
+    const result = await this.prisma.attendance.findUnique({
       where: { id },
       include: {
         employee: {
@@ -87,13 +87,14 @@ export class AttendanceRepository {
         },
       },
     });
+    return result as unknown as AttendanceWithEmployee | null;
   }
 
   async updateConfirmationStatus(
     id: string,
     status: ConfirmationStatus,
   ): Promise<AttendanceWithEmployee | null> {
-    return this.prisma.attendance.update({
+    const result = await this.prisma.attendance.update({
       where: { id },
       data: {
         confirmationStatus: status as any,
@@ -110,6 +111,7 @@ export class AttendanceRepository {
         },
       },
     });
+    return result as unknown as AttendanceWithEmployee | null;
   }
 
   async findMany(filter: AttendanceFilter): Promise<PaginatedAttendance> {
@@ -151,7 +153,7 @@ export class AttendanceRepository {
     ]);
 
     return {
-      data: data as AttendanceWithEmployee[],
+      data: data as unknown as AttendanceWithEmployee[],
       pagination: {
         total,
         page: filter.page,
@@ -177,7 +179,7 @@ export class AttendanceRepository {
         where: { timestamp: { gte: startOfDay, lt: endOfDay } },
         orderBy: { timestamp: 'asc' },
       }),
-      this.prisma.attendancePermission.findMany({
+      (this.prisma as any).attendancePermission.findMany({
         where: { date: permissionDate },
       }),
     ]);
@@ -203,7 +205,7 @@ export class AttendanceRepository {
       }
     }
 
-    return employees.map((emp) => {
+    return employees.map((emp: Employee) => {
       const records = byEmployee.get(emp.employeeId) ?? [];
       const checkIn = records.find((r) => r.eventType === 'CHECK_IN');
       const checkOut = records.find((r) => r.eventType === 'CHECK_OUT');
@@ -223,7 +225,7 @@ export class AttendanceRepository {
         checkInAt: checkIn ? checkIn.timestamp.toISOString() : null,
         checkOutAt: checkOut ? checkOut.timestamp.toISOString() : null,
         photo:
-          checkIn?.photoUrl ??
+          (checkIn as any)?.photoUrl ??
           (Array.isArray(emp.photos) && emp.photos.length > 0
             ? (emp.photos[0] as string)
             : null),
