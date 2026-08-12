@@ -125,4 +125,24 @@ export class LiveMonitoringRepository {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async findEmployeeFcmToken(employeeId: string): Promise<string | null> {
+    const employee = await this.prisma.employee.findUnique({
+      where: { employeeId },
+      select: { fcmToken: true },
+    });
+    return employee?.fcmToken ?? null;
+  }
+
+  async findRecognitionById(id: string): Promise<RecognitionEvent | null> {
+    return this.prisma.recognitionEvent.findUnique({ where: { id } });
+  }
+
+  async updateRecognitionStatus(id: string, status: string): Promise<RecognitionEvent> {
+    return this.prisma.recognitionEvent.update({
+      where: { id },
+      data: { status },
+    });
+  }
 }
+
