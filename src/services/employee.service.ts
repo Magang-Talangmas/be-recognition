@@ -11,6 +11,13 @@ import { ConflictError } from '../errors/ConflictError';
 import { NotFoundError } from '../errors/NotFoundError';
 import { MAX_PHOTOS } from '../lib/upload/upload';
 import { deleteEmployeePhotoFiles } from '../lib/storage';
+import {
+  createAuthUser,
+  upsertAuthUser,
+  deactivateAuthUser,
+  activateAuthUser,
+  deleteAuthUser,
+} from '../lib/supabase/auth';
 import { MlRegisterService } from './ml-register.service';
 
 export interface EmployeeDTO {
@@ -86,6 +93,15 @@ export class EmployeeService {
       photos: data.photos,
     });
 
+    if (data.email && data.password) {
+      await createAuthUser({
+        email: data.email,
+        password: data.password,
+        name: employee.name,
+        employeeId: employee.employeeId,
+      });
+    }
+
     this.syncToMl(employee);
 
     return toDTO(employee);
@@ -158,6 +174,17 @@ export class EmployeeService {
       this.deleteFromMl(employee, oldName);
     }
 
+    if (employee.email) {
+      await upsertAuthUser({
+        email: employee.email,
+        password: data.password,
+        name: employee.name,
+        employeeId: employee.employeeId,
+      });
+    } else {
+      await deactivateAuthUser(existing.email);
+    }
+
     // Best-effort: hapus file lama yang tidak lagi dipertahankan.
     const removed = existingPhotos.filter((url) => !keptUrls.includes(url));
     if (removed.length > 0) {
@@ -173,8 +200,10 @@ export class EmployeeService {
     const employee = await this.employeeRepository.toggleStatus(id, next);
     if (employee.status === 'Active') {
       this.syncToMl(employee);
+      await activateAuthUser(employee.email);
     } else {
       this.deleteFromMl(employee);
+      await deactivateAuthUser(employee.email);
     }
     return toDTO(employee);
   }
@@ -196,6 +225,7 @@ export class EmployeeService {
   async deleteEmployee(id: string): Promise<void> {
     const existing = await this.findOrThrow(id);
     await this.employeeRepository.delete(id);
+    await deleteAuthUser(existing.email);
     this.deleteFromMl(existing);
   }
 
