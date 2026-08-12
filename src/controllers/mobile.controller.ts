@@ -354,4 +354,63 @@ export class MobileController {
       next(error);
     }
   };
+
+  /**
+   * Tolak detection CCTV ('Bukan Saya').
+   * Status recognition_event diubah dari 'Unknown' ke 'Rejected'.
+   * Tidak menyentuh tabel attendances.
+   */
+  rejectRecognition = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user || req.user.role !== 'EMPLOYEE') {
+        throw new UnauthorizedError('Akses ditolak');
+      }
+
+      const { id } = req.params;
+
+      const event = await this.liveMonitoringRepository.findRecognitionById(id);
+      if (!event) {
+        throw new NotFoundError('Recognition event tidak ditemukan');
+      }
+
+      if (event.employeeId !== req.user.id) {
+        throw new UnauthorizedError('Akses ditolak ke recognition event ini');
+      }
+
+      if (event.status === 'Rejected') {
+        res.status(HTTP_STATUS.OK).json({
+          success: true,
+          message: 'Detection sudah ditolak sebelumnya',
+          data: { id: event.id, status: event.status },
+        });
+        return;
+      }
+
+      const updated = await this.liveMonitoringRepository.updateRecognitionStatus(id, 'Rejected');
+
+      logger.info('Employee menolak recognition event via mobile (Bukan Saya)', {
+        recognitionEventId: id,
+        employeeId: req.user.id,
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Detection berhasil ditolak',
+        data: {
+          id: updated.id,
+          status: updated.status,
+          employeeId: updated.employeeId,
+          cameraId: updated.cameraId,
+          confidence: updated.confidence,
+          timestamp: updated.createdAt.toISOString(),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

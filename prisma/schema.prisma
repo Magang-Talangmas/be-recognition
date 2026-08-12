@@ -49,7 +49,9 @@ model Attendance {
   confirmationStatus ConfirmationStatus @default(PENDING)       // PENDING | CONFIRMED | REJECTED
   isLate             Boolean?           @default(false)
   photoUrl           String? // URL foto bukti check-in (mobile app)
+  snapshotUrl        String? // URL snapshot kamera CCTV saat deteksi
   createdAt          DateTime           @default(now())
+
   updatedAt          DateTime           @updatedAt
   employee           Employee?          @relation(fields: [employeeId], references: [employeeId])
 
@@ -143,21 +145,24 @@ model WorkSchedule {
 }
 
 model Notification {
-  id           String      @id @default(cuid())
-  attendanceId String?
-  employeeId   String? // denormalized "EMP-xxx" untuk notifikasi reminder tanpa attendance
-  type         String      @default("INFO")
-  title        String
-  description  String
-  isRead       Boolean     @default(false)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  id             String      @id @default(cuid())
+  attendanceId   String?
+  employeeId     String? // denormalized "EMP-xxx" untuk notifikasi reminder tanpa attendance
+  recognitionId  String?     // ID RecognitionEvent terkait (untuk notifikasi konfirmasi CCTV)
+  type           String      @default("INFO")
+  title          String
+  description    String
+  isRead         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  attendance     Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
 
   @@index([attendanceId])
   @@index([employeeId])
+  @@index([recognitionId])
   @@map("notifications")
 }
+
 
 model Settings {
   id                  String   @id @default("system")
