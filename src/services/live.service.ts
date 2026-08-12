@@ -10,6 +10,7 @@ import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { liveSseHub } from '../lib/live/sse-hub';
 import { logger } from '../config/logger';
 import { NotFoundError } from '../errors/NotFoundError';
+import { sendPushNotification } from '../lib/firebase';
 import {
   CheckinEventPayload,
   LiveFeedDTO,
@@ -180,6 +181,35 @@ export class LiveMonitoringService {
 
     const dto = toRecognitionDTO(event, cameraName, employeeName, notification?.id ?? null);
     liveSseHub.publish('unknown', dto);
+
+    // Kirim push notification ke mobile karyawan yang terdeteksi untuk konfirmasi kehadiran
+    if (input.employeeId) {
+      const fcmToken = await this.repository.findEmployeeFcmToken(input.employeeId).catch(() => null);
+      if (fcmToken) {
+        sendPushNotification(
+          fcmToken,
+          'Konfirmasi Kehadiran Anda',
+          `Sistem mendeteksi Anda di kamera ${cameraName}. Apakah ini benar?`,
+          {
+            intentAction: 'com.example.javatraining.CONFIRM_RECOGNITION',
+            recognitionEventId: event.id,
+            employeeId: input.employeeId,
+            cameraId: input.cameraId,
+            timestamp: event.createdAt.toISOString(),
+          },
+        ).catch((err: unknown) => {
+          logger.error('Gagal mengirim push konfirmasi recognition ke mobile', {
+            employeeId: input.employeeId,
+            recognitionEventId: event.id,
+            error: err instanceof Error ? err.message : 'unknown',
+          });
+        });
+      } else {
+        logger.info('Push konfirmasi recognition dilewati — fcmToken tidak ada', {
+          employeeId: input.employeeId,
+        });
+      }
+    }
 
     return dto;
   }

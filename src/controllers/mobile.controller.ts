@@ -12,6 +12,7 @@ import { ValidationError } from '../errors/ValidationError';
 import { logger } from '../config/logger';
 import { JwtPayload } from '../interfaces/auth.interface';
 import { uploadCheckinPhoto } from '../lib/storage';
+import { LiveMonitoringRepository } from '../repositories/live.repository';
 
 const JWT_EXPIRY = '24h';
 
@@ -22,6 +23,7 @@ export class MobileController {
     private readonly employeeRepository: EmployeeRepository,
     private readonly attendanceService: AttendanceService,
     private readonly scheduleService: ScheduleService,
+    private readonly liveMonitoringRepository: LiveMonitoringRepository,
   ) { }
 
   login = async (
@@ -286,6 +288,67 @@ export class MobileController {
       res.status(HTTP_STATUS.OK).json({
         success: true,
         message: 'Password berhasil diubah',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Konfirmasi kehadiran dari notifikasi CCTV recognition.
+   * Employee mengkonfirmasi bahwa deteksi wajah pada recognition_event adalah benar.
+   * Status recognition_event diubah dari 'Unknown' ke 'Verified'.
+   * Tidak menyentuh tabel attendances.
+   */
+  confirmRecognition = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user || req.user.role !== 'EMPLOYEE') {
+        throw new UnauthorizedError('Akses ditolak');
+      }
+
+      const { id } = req.params;
+
+      const event = await this.liveMonitoringRepository.findRecognitionById(id);
+      if (!event) {
+        throw new NotFoundError('Recognition event tidak ditemukan');
+      }
+
+      // Pastikan recognition ini milik employee yang login
+      if (event.employeeId !== req.user.id) {
+        throw new UnauthorizedError('Akses ditolak ke recognition event ini');
+      }
+
+      if (event.status === 'Verified') {
+        res.status(HTTP_STATUS.OK).json({
+          success: true,
+          message: 'Kehadiran sudah dikonfirmasi sebelumnya',
+          data: { id: event.id, status: event.status },
+        });
+        return;
+      }
+
+      const updated = await this.liveMonitoringRepository.updateRecognitionStatus(id, 'Verified');
+
+      logger.info('Employee mengkonfirmasi recognition event via mobile', {
+        recognitionEventId: id,
+        employeeId: req.user.id,
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Kehadiran berhasil dikonfirmasi',
+        data: {
+          id: updated.id,
+          status: updated.status,
+          employeeId: updated.employeeId,
+          cameraId: updated.cameraId,
+          confidence: updated.confidence,
+          timestamp: updated.createdAt.toISOString(),
+        },
       });
     } catch (error) {
       next(error);

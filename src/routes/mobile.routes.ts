@@ -71,5 +71,12 @@ export const createMobileRouter = (
     router.patch('/notifications/:id/read', authMiddleware, requireRole('EMPLOYEE'), notificationController.markAsRead);
   }
 
+  /**
+   * @route   PATCH /api/v1/mobile/recognition/:id/confirm
+   * @desc    Konfirmasi kehadiran dari push notifikasi CCTV recognition
+   * @access  EMPLOYEE
+   */
+  router.patch('/recognition/:id/confirm', authMiddleware, requireRole('EMPLOYEE'), mobileController.confirmRecognition);
+
   return router;
 };
