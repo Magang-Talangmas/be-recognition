@@ -23,6 +23,7 @@ export class AttendanceRepository {
         confirmationStatus: (data.confirmationStatus ?? 'PENDING') as any,
         isLate: data.isLate,
         photoUrl: data.photoUrl ?? null,
+        snapshotUrl: data.snapshotUrl ?? null,
       } as any,
     });
   }
@@ -113,6 +114,14 @@ export class AttendanceRepository {
     });
     return result as unknown as AttendanceWithEmployee | null;
   }
+
+  async updateSnapshotUrl(id: string, snapshotUrl: string | null): Promise<void> {
+    await this.prisma.attendance.update({
+      where: { id },
+      data: { snapshotUrl },
+    });
+  }
+
 
   async findMany(filter: AttendanceFilter): Promise<PaginatedAttendance> {
     const skip = (filter.page - 1) * filter.limit;

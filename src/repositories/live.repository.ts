@@ -125,4 +125,11 @@ export class LiveMonitoringRepository {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async updateThumbnail(id: string, thumbnail: string | null): Promise<void> {
+    await this.prisma.recognitionEvent.update({
+      where: { id },
+      data: { thumbnail },
+    });
+  }
 }

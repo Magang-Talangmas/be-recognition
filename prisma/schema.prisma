@@ -49,6 +49,7 @@ model Attendance {
   confirmationStatus ConfirmationStatus @default(PENDING)       // PENDING | CONFIRMED | REJECTED
   isLate             Boolean?           @default(false)
   photoUrl           String? // URL foto bukti check-in (mobile app)
+  snapshotUrl        String? // URL foto otomatis dari CCTV
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   employee           Employee?          @relation(fields: [employeeId], references: [employeeId])

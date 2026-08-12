@@ -3,11 +3,15 @@ import { env } from './config/env';
 import { logger } from './config/logger';
 import { disconnectPrisma } from './lib/prisma/client';
 import { disconnectRedis } from './lib/redis/client';
+import { initSnapshotCleanupJob } from './jobs/snapshot-cleanup.job';
 
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
   logger.info(`Server berjalan di port ${env.PORT} [${env.NODE_ENV}]`);
+  
+  // Inisialisasi background jobs
+  initSnapshotCleanupJob();
 });
 
 // === Graceful Shutdown ===
