@@ -229,16 +229,17 @@ export class ReportService {
           continue;
         }
         if (att.eventType === 'CHECK_IN') {
-          presentEmployees.add(att.employeeId);
           if (att.isLate) {
             lateEmployees.add(att.employeeId);
+          } else {
+            presentEmployees.add(att.employeeId);
           }
         }
       }
 
       const present = presentEmployees.size;
       const late = lateEmployees.size;
-      const absent = Math.max(0, activeCount - present);
+      const absent = Math.max(0, activeCount - present - late);
 
       rows.push({
         code: this.periodCode(periodStart, granularity),
@@ -271,9 +272,9 @@ export class ReportService {
     return employees.map((emp) => {
       const events = byEmployee.get(emp.employeeId) ?? [];
       const checkIns = events.filter((e) => e.eventType === 'CHECK_IN');
-      const present = checkIns.length;
       const late = checkIns.filter((e) => e.isLate).length;
-      const absent = emp.status === 'Active' && present === 0 ? 1 : 0;
+      const present = checkIns.length - late;
+      const absent = emp.status === 'Active' && checkIns.length === 0 ? 1 : 0;
 
       return {
         code: emp.id,
@@ -421,8 +422,8 @@ export class ReportService {
     const employeeRows = employees.map((emp) => {
       const events = byEmployee.get(emp.employeeId) ?? [];
       const checkIns = events.filter((e) => e.eventType === 'CHECK_IN');
-      const present = checkIns.length;
       const late = checkIns.filter((e) => e.isLate).length;
+      const present = checkIns.length - late;
 
       return {
         id: emp.id,
@@ -433,7 +434,7 @@ export class ReportService {
         status: (emp.status === 'Inactive' ? 'Inactive' : 'Active') as 'Active' | 'Inactive',
         present,
         late,
-        absent: emp.status === 'Active' && present === 0 ? 1 : 0,
+        absent: emp.status === 'Active' && checkIns.length === 0 ? 1 : 0,
         unknown: 0,
       };
     });
