@@ -14,8 +14,6 @@ interface DetectResult {
   details: DetectDetail[];
 }
 
-export const faceBboxCache = new Map<string, number[]>();
-
 /**
  * Mengambil hasil pengenalan dari ML engine (GET /detect) secara berkala
  * lalu meneruskannya ke Live Monitoring (recordRecognition + SSE broadcast).
@@ -82,12 +80,6 @@ export class MlDetectService {
 
     for (const detail of data.details) {
       const identity = detail.name || 'Unknown';
-      
-      // Update cache bbox (walaupun kena dedup, tetap diupdate agar bbox selalu paling baru)
-      if (identity !== 'Unknown' && detail.bbox && detail.bbox.length === 4) {
-        faceBboxCache.set(identity, detail.bbox);
-      }
-
       const last = this.lastRecorded.get(identity);
       if (last !== undefined && now - last < dedupMs) {
         continue;
