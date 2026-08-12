@@ -220,6 +220,7 @@ export class AttendanceRepository {
         position: emp.position,
         employeeStatus: emp.status === 'Inactive' ? 'Inactive' : 'Active',
         present: records.length > 0,
+        isLate: checkIn?.isLate ?? null,
         attendanceCount: records.length,
         confirmationStatus: (checkInConfirmation ?? null) as ConfirmationStatus | null,
         checkInAt: checkIn ? checkIn.timestamp.toISOString() : null,

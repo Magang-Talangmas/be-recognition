@@ -12,6 +12,7 @@ export interface ReportRow {
   present: number;
   late: number;
   absent: number;
+  permission: number;
   unknown: number;
 }
 
@@ -19,6 +20,7 @@ export interface ReportTotals {
   present: number;
   late: number;
   absent: number;
+  permission: number;
   unknown: number;
 }
 
@@ -37,6 +39,11 @@ export interface ReportAttendanceRow {
   eventType: string;
   isLate: boolean | null;
   timestamp: Date;
+}
+
+export interface ReportPermissionRow {
+  employeeId: string;
+  date: Date;
 }
 
 export interface ReportEmployeeRow {
@@ -58,6 +65,7 @@ export interface ReportEmployeeDetail {
   present: number;
   late: number;
   absent: number;
+  permission: number;
   unknown: number;
 }
 

@@ -7,6 +7,7 @@ import {
   ReportAttendanceRow,
   ReportEmployeeRow,
   ReportPeriodDetail,
+  ReportPermissionRow,
   ReportResult,
   ReportRow,
   ReportTotals,
@@ -88,13 +89,14 @@ function monthLabel(date: Date): string {
 }
 
 function emptyTotals(): ReportTotals {
-  return { present: 0, late: 0, absent: 0, unknown: 0 };
+  return { present: 0, late: 0, absent: 0, permission: 0, unknown: 0 };
 }
 
 function addTotals(target: ReportTotals, source: ReportTotals): void {
   target.present += source.present;
   target.late += source.late;
   target.absent += source.absent;
+  target.permission += source.permission;
   target.unknown += source.unknown;
 }
 
@@ -111,12 +113,13 @@ export class ReportService {
 
   async getReport(input: ReportQueryInput): Promise<ReportResult> {
     const query = this.buildQuery(input);
-    const [attendances, employees] = await Promise.all([
+    const [attendances, employees, permissions] = await Promise.all([
       this.reportRepository.findAttendanceRange(query.startDate, query.endDate),
       this.reportRepository.findEmployees(),
+      this.reportRepository.findPermissionsRange(query.startDate, query.endDate),
     ]);
 
-    const rows = this.buildRows(query.type, attendances, employees, query);
+    const rows = this.buildRows(query.type, attendances, employees, permissions, query);
     const totals = this.computeTotals(rows);
     const total = rows.length;
     const totalPages = Math.ceil(total / query.perPage);
@@ -158,12 +161,14 @@ export class ReportService {
     type: ReportTypeValue,
     attendances: ReportAttendanceRow[],
     employees: ReportEmployeeRow[],
+    permissions: ReportPermissionRow[],
     query: ReportQuery,
   ): ReportRow[] {
     switch (type) {
       case 'daily':
         return this.buildPeriodRows(
           attendances,
+          permissions,
           employees,
           query.startDate,
           query.endDate,
@@ -172,6 +177,7 @@ export class ReportService {
       case 'weekly':
         return this.buildPeriodRows(
           attendances,
+          permissions,
           employees,
           query.startDate,
           query.endDate,
@@ -180,13 +186,14 @@ export class ReportService {
       case 'monthly':
         return this.buildPeriodRows(
           attendances,
+          permissions,
           employees,
           query.startDate,
           query.endDate,
           'month',
         );
       case 'employee':
-        return this.buildEmployeeRows(attendances, employees);
+        return this.buildEmployeeRows(attendances, permissions, employees);
       case 'recognition':
         return this.buildRecognitionRows(attendances, employees);
       case 'unknown':
@@ -196,6 +203,7 @@ export class ReportService {
 
   private buildPeriodRows(
     attendances: ReportAttendanceRow[],
+    permissions: ReportPermissionRow[],
     employees: ReportEmployeeRow[],
     startDate: Date,
     endDate: Date,
@@ -211,6 +219,17 @@ export class ReportService {
         list.push(att);
       } else {
         eventsByPeriod.set(key, [att]);
+      }
+    }
+
+    const permissionsByPeriod = new Map<string, string[]>();
+    for (const perm of permissions) {
+      const key = this.periodKey(perm.date, granularity);
+      const list = permissionsByPeriod.get(key);
+      if (list) {
+        if (!list.includes(perm.employeeId)) list.push(perm.employeeId);
+      } else {
+        permissionsByPeriod.set(key, [perm.employeeId]);
       }
     }
 
@@ -237,9 +256,15 @@ export class ReportService {
         }
       }
 
+      const permissionEmployees = permissionsByPeriod.get(key) ?? [];
+      const permissionCount = permissionEmployees.filter(
+        (empId) => !presentEmployees.has(empId) && !lateEmployees.has(empId),
+      ).length;
+
       const present = presentEmployees.size;
       const late = lateEmployees.size;
-      const absent = Math.max(0, activeCount - present - late);
+      const permission = permissionCount;
+      const absent = Math.max(0, activeCount - present - late - permission);
 
       rows.push({
         code: this.periodCode(periodStart, granularity),
@@ -247,6 +272,7 @@ export class ReportService {
         present,
         late,
         absent,
+        permission,
         unknown,
       });
     }
@@ -256,6 +282,7 @@ export class ReportService {
 
   private buildEmployeeRows(
     attendances: ReportAttendanceRow[],
+    permissions: ReportPermissionRow[],
     employees: ReportEmployeeRow[],
   ): ReportRow[] {
     const byEmployee = new Map<string, ReportAttendanceRow[]>();
@@ -269,12 +296,25 @@ export class ReportService {
       }
     }
 
+    const permissionDates = new Map<string, Set<string>>();
+    for (const perm of permissions) {
+      const key = perm.date.toISOString().split('T')[0];
+      const set = permissionDates.get(perm.employeeId);
+      if (set) {
+        set.add(key);
+      } else {
+        permissionDates.set(perm.employeeId, new Set([key]));
+      }
+    }
+
     return employees.map((emp) => {
       const events = byEmployee.get(emp.employeeId) ?? [];
       const checkIns = events.filter((e) => e.eventType === 'CHECK_IN');
       const late = checkIns.filter((e) => e.isLate).length;
       const present = checkIns.length - late;
-      const absent = emp.status === 'Active' && checkIns.length === 0 ? 1 : 0;
+      const permission = permissionDates.get(emp.employeeId)?.size ?? 0;
+      const absent =
+        emp.status === 'Active' && checkIns.length === 0 && permission === 0 ? 1 : 0;
 
       return {
         code: emp.id,
@@ -282,6 +322,7 @@ export class ReportService {
         present,
         late,
         absent,
+        permission,
         unknown: 0,
       };
     });
@@ -303,6 +344,7 @@ export class ReportService {
       present: byEmployee.get(emp.employeeId) ?? 0,
       late: 0,
       absent: 0,
+      permission: 0,
       unknown: 0,
     }));
   }
@@ -322,6 +364,7 @@ export class ReportService {
         present: 0,
         late: 0,
         absent: 0,
+        permission: 0,
         unknown: count,
       }));
   }
@@ -399,9 +442,10 @@ export class ReportService {
       throw new NotFoundError('Data tidak ditemukan');
     }
 
-    const [attendances, employees] = await Promise.all([
+    const [attendances, employees, permissions] = await Promise.all([
       this.reportRepository.findAttendanceRange(parsed.startDate, parsed.endDate),
       this.reportRepository.findEmployees(),
+      this.reportRepository.findPermissionsRange(parsed.startDate, parsed.endDate),
     ]);
 
     const byEmployee = new Map<string, ReportAttendanceRow[]>();
@@ -419,11 +463,23 @@ export class ReportService {
       }
     }
 
+    const permissionDates = new Map<string, Set<string>>();
+    for (const perm of permissions) {
+      const key = perm.date.toISOString().split('T')[0];
+      const set = permissionDates.get(perm.employeeId);
+      if (set) {
+        set.add(key);
+      } else {
+        permissionDates.set(perm.employeeId, new Set([key]));
+      }
+    }
+
     const employeeRows = employees.map((emp) => {
       const events = byEmployee.get(emp.employeeId) ?? [];
       const checkIns = events.filter((e) => e.eventType === 'CHECK_IN');
       const late = checkIns.filter((e) => e.isLate).length;
       const present = checkIns.length - late;
+      const permission = permissionDates.get(emp.employeeId)?.size ?? 0;
 
       return {
         id: emp.id,
@@ -434,7 +490,8 @@ export class ReportService {
         status: (emp.status === 'Inactive' ? 'Inactive' : 'Active') as 'Active' | 'Inactive',
         present,
         late,
-        absent: emp.status === 'Active' && checkIns.length === 0 ? 1 : 0,
+        absent: emp.status === 'Active' && checkIns.length === 0 && permission === 0 ? 1 : 0,
+        permission,
         unknown: 0,
       };
     });
@@ -449,6 +506,7 @@ export class ReportService {
         present: employeeRows.reduce((sum, row) => sum + row.present, 0),
         late: employeeRows.reduce((sum, row) => sum + row.late, 0),
         absent: employeeRows.reduce((sum, row) => sum + row.absent, 0),
+        permission: employeeRows.reduce((sum, row) => sum + row.permission, 0),
         unknown,
       },
       employees: employeeRows,
