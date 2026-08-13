@@ -61,6 +61,13 @@ const envSchema = z.object({
     .string()
     .default('60000')
     .transform((val) => parseInt(val, 10)),
+  ML_VERIFY_FACE_URL: z
+    .string()
+    .default('http://localhost:5001/verify-face'),
+  ML_VERIFY_FACE_THRESHOLD: z
+    .string()
+    .default('35')
+    .transform((val) => parseFloat(val)),
   ML_REMOVE_URL: z
     .string()
     .default('')
