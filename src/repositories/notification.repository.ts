@@ -13,7 +13,7 @@ export class NotificationRepository {
     employeeId: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<{ data: Notification[]; total: number }> {
+  ) {
     const skip = (page - 1) * limit;
 
     const where: Prisma.NotificationWhereInput = {
@@ -58,8 +58,16 @@ export class NotificationRepository {
       this.prisma.notification.count({ where }),
     ]);
 
-    return { data, total };
+    // Flatten imageUrl ke root object agar mobile tidak perlu nested access
+    const enriched = data.map((n) => ({
+      ...n,
+      imageUrl: n.recognitionEvent?.thumbnail ?? null,
+    }));
+
+    return { data: enriched, total };
   }
+
+
 
   async findById(id: string) {
     return this.prisma.notification.findUnique({
