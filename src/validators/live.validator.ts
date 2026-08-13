@@ -33,6 +33,7 @@ export const recordRecognitionSchema = z.object({
   status: z.enum(['Verified', 'Unknown', 'Rejected']).optional(),
   thumbnail: optionalString(z.string().trim()),
   timestamp: optionalString(z.string()),
+  bbox: z.array(z.number()).optional(),
 });
 
 export const systemNotificationSchema = z.object({

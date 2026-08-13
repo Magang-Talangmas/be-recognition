@@ -72,6 +72,7 @@ export interface RecordRecognitionInput {
   status?: RecognitionStatus;
   thumbnail?: string | null;
   timestamp?: string; // ISO 8601
+  bbox?: number[];
 }
 
 /** Data payload event checkin untuk SSE. */

@@ -154,10 +154,14 @@ const SNAPSHOT_FOLDER = 'weekly_recog';
  */
 export async function captureAndUploadSnapshot(
   employeeId: string,
+  bbox?: number[],
   streamBaseUrl: string = process.env.AI_STREAM_BASE_URL || (env.ML_DETECT_URL ? new URL(env.ML_DETECT_URL).origin : 'http://localhost:8088'),
 ): Promise<string | null> {
   try {
-    const targetUrl = `${streamBaseUrl}/snapshot`;
+    let targetUrl = `${streamBaseUrl}/snapshot`;
+    if (bbox && bbox.length === 4) {
+      targetUrl += `?bbox=${bbox.join(',')}`;
+    }
     console.log(`[SNAPSHOT] Mencoba fetch dari ${targetUrl} untuk ${employeeId}...`);
     const res = await fetch(targetUrl, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) {

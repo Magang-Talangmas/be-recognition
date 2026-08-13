@@ -173,7 +173,7 @@ export class LiveMonitoringService {
     });
 
     if (!input.thumbnail && input.employeeId) {
-      captureAndUploadSnapshot(input.employeeId)
+      captureAndUploadSnapshot(input.employeeId, input.bbox)
         .then((url) => {
           if (url) {
             this.repository.updateThumbnail(event.id, url).catch(() => {});

@@ -98,6 +98,7 @@ export class MlDetectService {
           confidence: Math.max(0, Math.min(100, detail.similarity)),
           status: 'Unknown',
           timestamp: new Date().toISOString(),
+          bbox: detail.bbox,
         };
 
         this.lastRecorded.set(identity, now);
