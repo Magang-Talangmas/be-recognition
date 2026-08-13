@@ -356,7 +356,11 @@ export class MobileController {
         similarity: recognition.confidence,
         timestamp: recognition.createdAt.toISOString(),
         photoUrl: recognition.thumbnail ?? undefined,
+        confirmationStatus: 'CONFIRMED', // Attendance hasil konfirmasi langsung berstatus CONFIRMED
       });
+
+      // Attendance yang sudah dibuat otomatis oleh auto check-in CCTV (PENDING) ikut jadi CONFIRMED
+      await this.attendanceService.confirmAttendanceByExternalEventId(`cctv-${recognition.id}`, 'CONFIRMED');
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
@@ -401,6 +405,9 @@ export class MobileController {
       }
 
       await this.liveMonitoringRepository.updateRecognitionStatusAndConfirm(recognitionId, recognition.status, 'REJECTED');
+
+      // Attendance yang dibuat otomatis oleh auto check-in CCTV ikut ditandai REJECTED
+      await this.attendanceService.confirmAttendanceByExternalEventId(`cctv-${recognition.id}`, 'REJECTED');
 
       res.status(HTTP_STATUS.OK).json({
         success: true,

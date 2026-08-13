@@ -41,6 +41,7 @@ export interface ProcessAttendanceInput {
   similarity?: number;
   timestamp: string;         // ISO 8601 string (detected_at dari AI)
   photoUrl?: string;         // URL foto bukti (mobile check-in)
+  confirmationStatus?: ConfirmationStatus; // Override status konfirmasi (mis. CONFIRMED dari mobile)
 }
 
 export class AttendanceService {
@@ -190,7 +191,7 @@ export class AttendanceService {
       eventType: data.eventType,
       similarity: data.similarity,
       timestamp: targetDate,
-      confirmationStatus: 'PENDING',
+      confirmationStatus: data.confirmationStatus || 'PENDING',
       isLate,
       photoUrl: data.photoUrl,
     });
@@ -284,11 +285,20 @@ export class AttendanceService {
     return isLate;
   }
 
+  // Update status konfirmasi attendance yang sudah ada berdasarkan externalEventId.
+  // Dipakai saat mobile confirm/reject recognition: attendance yang dibuat auto check-in
+  // (externalEventId `cctv-<recognitionId>`) perlu ikut di-update statusnya.
+  async confirmAttendanceByExternalEventId(
+    externalEventId: string,
+    status: ConfirmationStatus,
+  ): Promise<number> {
+    return this.attendanceRepository.updateConfirmationStatusByExternalEventId(externalEventId, status);
+  }
+
   async updateConfirmationStatus(
     id: string,
     status: ConfirmationStatus,
-  ): Promise<AttendanceWithEmployee> {
-    const existing = await this.attendanceRepository.findById(id);
+  ): Promise<AttendanceWithEmployee> {    const existing = await this.attendanceRepository.findById(id);
     if (!existing) {
       throw new NotFoundError(`Attendance dengan ID ${id} tidak ditemukan`);
     }

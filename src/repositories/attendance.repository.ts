@@ -35,6 +35,18 @@ export class AttendanceRepository {
     });
   }
 
+  // Update status konfirmasi attendance berdasarkan externalEventId (dipakai saat konfirmasi recognition dari mobile).
+  async updateConfirmationStatusByExternalEventId(
+    externalEventId: string,
+    status: ConfirmationStatus,
+  ): Promise<number> {
+    const result = await this.prisma.attendance.updateMany({
+      where: { externalEventId },
+      data: { confirmationStatus: status as any },
+    });
+    return result.count;
+  }
+
   // Ambil daftar employee yang sudah melakukan CHECK_IN pada rentang hari tertentu.
   async findCheckInsForEmployees(
     employeeIds: string[],
