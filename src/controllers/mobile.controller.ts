@@ -13,7 +13,6 @@ import { ValidationError } from '../errors/ValidationError';
 import { logger } from '../config/logger';
 import { JwtPayload } from '../interfaces/auth.interface';
 import { uploadCheckinPhoto } from '../lib/storage';
-import { LiveMonitoringRepository } from '../repositories/live.repository';
 
 const JWT_EXPIRY = '24h';
 

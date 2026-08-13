@@ -24,7 +24,7 @@ export class NotificationService {
       throw new NotFoundError('Notifikasi tidak ditemukan');
     }
 
-    const ownerEmployeeId = notification.employeeId ?? notification.attendance?.employeeId ?? null;
+    const ownerEmployeeId = notification.employeeId ?? (notification as any).attendance?.employeeId ?? null;
     if (ownerEmployeeId && ownerEmployeeId !== employeeId) {
       throw new UnauthorizedError('Akses ditolak ke notifikasi ini');
     }
