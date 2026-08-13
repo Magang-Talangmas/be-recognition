@@ -41,6 +41,13 @@ export const createMobileRouter = (
   router.post('/attendance', authMiddleware, requireRole('EMPLOYEE'), uploadCheckinPhotos, mobileController.checkIn);
 
   /**
+   * @route   GET /api/v1/mobile/recognitions/pending
+   * @desc    Daftar deteksi wajah milik employee yang login dan masih menunggu konfirmasi (kartu wajah di Home)
+   * @access  EMPLOYEE
+   */
+  router.get('/recognitions/pending', authMiddleware, requireRole('EMPLOYEE'), mobileController.getPendingRecognitions);
+
+  /**
    * @route   POST /api/v1/mobile/recognition/:id/confirm
    * @desc    Konfirmasi data pengenalan wajah dari CCTV agar masuk ke absensi
    * @access  EMPLOYEE

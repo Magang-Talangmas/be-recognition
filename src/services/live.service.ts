@@ -107,6 +107,27 @@ export class LiveMonitoringService {
     };
   }
 
+  async getPendingRecognitions(employeeId: string, limit = 20): Promise<LiveRecognitionList> {
+    const { items, total } = await this.repository.findRecognitions({
+      limit,
+      employeeId,
+      isConfirm: 'PENDING',
+    });
+    const cameraNames = await this.buildCameraNameMap();
+    const employeeNames = await this.buildEmployeeNameMap(items);
+
+    return {
+      items: items.map((event) =>
+        toRecognitionDTO(
+          event,
+          cameraNames.get(event.cameraId) ?? event.cameraId,
+          event.employeeId ? employeeNames.get(event.employeeId) ?? null : null,
+        ),
+      ),
+      total,
+    };
+  }
+
   async getNotifications(filter: NotificationFilter): Promise<LiveNotificationList> {
     const { items, total } = await this.repository.findNotifications(filter);
     return { items: items.map(toNotificationDTO), total };

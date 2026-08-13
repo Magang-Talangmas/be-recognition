@@ -29,6 +29,8 @@ export class LiveMonitoringRepository {
     const where = {
       ...(filter.cameraId ? { cameraId: filter.cameraId } : {}),
       ...(filter.status ? { status: filter.status } : {}),
+      ...(filter.employeeId ? { employeeId: filter.employeeId } : {}),
+      ...(filter.isConfirm ? { isConfirm: filter.isConfirm } : {}),
     };
 
     const [items, total] = await this.prisma.$transaction([

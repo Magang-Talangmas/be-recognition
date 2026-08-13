@@ -17,6 +17,7 @@ import { uploadCheckinPhoto } from '../lib/storage';
 const JWT_EXPIRY = '24h';
 
 import { ScheduleService } from '../services/schedule.service';
+import { LiveMonitoringService } from '../services/live.service';
 
 export class MobileController {
   constructor(
@@ -24,6 +25,7 @@ export class MobileController {
     private readonly attendanceService: AttendanceService,
     private readonly scheduleService: ScheduleService,
     private readonly liveMonitoringRepository: LiveMonitoringRepository,
+    private readonly liveMonitoringService?: LiveMonitoringService,
   ) { }
 
   login = async (
@@ -107,6 +109,29 @@ export class MobileController {
           faceRegistered: employee.faceRegistered,
           photos: employee.photos,
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getPendingRecognitions = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user || req.user.role !== 'EMPLOYEE') {
+        throw new UnauthorizedError('Akses ditolak');
+      }
+
+      const limit = parseInt(req.query['limit'] as string, 10) || 20;
+      const data = await this.liveMonitoringService?.getPendingRecognitions(req.user.id, limit);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Daftar deteksi wajah menunggu konfirmasi',
+        data: data ?? { items: [], total: 0 },
       });
     } catch (error) {
       next(error);

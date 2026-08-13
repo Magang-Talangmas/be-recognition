@@ -57,6 +57,8 @@ export interface RecognitionFilter {
   limit: number;
   cameraId?: string;
   status?: RecognitionStatus;
+  employeeId?: string;
+  isConfirm?: string;
 }
 
 export interface NotificationFilter {
