@@ -110,6 +110,7 @@ model RecognitionEvent {
   isConfirm  String   @default("PENDING") // PENDING | CONFIRMED
   thumbnail  String?
   createdAt  DateTime @default(now())
+  notifications Notification[]
 
   @@index([cameraId])
   @@index([employeeId])

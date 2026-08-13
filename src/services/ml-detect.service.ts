@@ -83,7 +83,9 @@ export class MlDetectService {
       }
 
       const now = Date.now();
-      const dedupMs = env.ML_DETECT_DEDUP_SECONDS * 1000;
+      // Debounce in-memory dikurangi drastis menjadi 10 detik.
+      // Deduplikasi utama (1x sehari) sekarang ditangani oleh database di live.service.ts.
+      const dedupMs = 10000;
 
       let sharedThumbnail: string | undefined = undefined;
       let snapshotAttempted = false;

@@ -104,13 +104,21 @@ export class LiveMonitoringRepository {
     return employee?.name ?? null;
   }
 
+  async findEmployeeFcmToken(employeeId: string): Promise<string | null> {
+    const employee = await this.prisma.employee.findUnique({
+      where: { employeeId },
+      select: { fcmToken: true },
+    });
+    return employee?.fcmToken ?? null;
+  }
+
   /**
    * Cari record recognition_events untuk employeeId pada hari yang sama (WIB).
    * Hanya cek record dengan status 'Unknown' atau 'Verified' (Rejected boleh POST ulang).
    * Return null jika tidak ada duplikat.
    */
   async findTodayRecognitionByEmployee(
-    employeeId: string,
+    employeeId: string | null,
     date: Date,
   ): Promise<RecognitionEvent | null> {
     const startOfDay = dayjs(date).tz('Asia/Jakarta').startOf('day').toDate();

@@ -208,3 +208,25 @@ export async function deleteSnapshot(url: string): Promise<void> {
     // Abaikan jika URL tidak valid atau penghapusan gagal
   }
 }
+
+export async function uploadRecognitionSnapshot(buffer: Buffer): Promise<string> {
+  const fileName = `snapshots/${Date.now()}-${randomUUID()}.jpg`;
+
+  const { error } = await getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .upload(fileName, buffer, {
+      contentType: 'image/jpeg',
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Upload snapshot ke Supabase gagal: ${error.message}`);
+  }
+
+  const { data } = getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}

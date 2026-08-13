@@ -141,22 +141,20 @@ export class LiveMonitoringService {
     // [Aturan 1] Status dari ML selalu Unknown — abaikan field status dari input
     const status: RecognitionStatus = 'Unknown';
 
-    // [Aturan 2 & 3] Guard duplikasi per hari hanya untuk employee yang dikenali
-    if (input.employeeId) {
-      const today = input.timestamp ? new Date(input.timestamp) : new Date();
-      const existing = await this.repository.findTodayRecognitionByEmployee(
-        input.employeeId,
-        today,
-      );
+    // [Aturan 2 & 3] Guard duplikasi per hari untuk semua (termasuk wajah tidak dikenal / Unknown)
+    const today = input.timestamp ? new Date(input.timestamp) : new Date();
+    const existing = await this.repository.findTodayRecognitionByEmployee(
+      input.employeeId ?? null,
+      today,
+    );
 
-      if (existing) {
-        logger.info('Recognition diabaikan — duplikat hari ini (status Unknown/Verified)', {
-          employeeId: input.employeeId,
-          existingId: existing.id,
-          existingStatus: existing.status,
-        });
-        return null; // Controller akan kembalikan 409 Conflict
-      }
+    if (existing) {
+      logger.info('Recognition diabaikan — duplikat hari ini (status Unknown/Verified)', {
+        employeeId: input.employeeId ?? 'Unknown',
+        existingId: existing.id,
+        existingStatus: existing.status,
+      });
+      return null; // Controller akan kembalikan 409 Conflict
     }
 
     const camera = await this.repository.findCameraByCameraId(input.cameraId).catch(() => null);

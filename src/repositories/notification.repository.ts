@@ -42,7 +42,7 @@ export class NotificationRepository {
               isLate: true,
             },
           },
-          recognition: {
+          recognitionEvent: {
             select: {
               id: true,
               employeeId: true,
@@ -61,7 +61,7 @@ export class NotificationRepository {
     // Flatten imageUrl ke root object agar mobile tidak perlu nested access
     const enriched = data.map((n) => ({
       ...n,
-      imageUrl: n.recognitionEvent?.thumbnail ?? null,
+      imageUrl: (n as any).recognitionEvent?.thumbnail ?? null,
     }));
 
     return { data: enriched, total };
@@ -74,7 +74,7 @@ export class NotificationRepository {
       where: { id },
       include: {
         attendance: true,
-        recognition: true,
+        recognitionEvent: true,
       },
     });
   }
