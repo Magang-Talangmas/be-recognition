@@ -146,6 +146,7 @@ export class LiveMonitoringService {
     const existing = await this.repository.findTodayRecognitionByEmployee(
       input.employeeId ?? null,
       today,
+      input.eventType,
     );
 
     if (existing) {
@@ -168,6 +169,7 @@ export class LiveMonitoringService {
       confidence: input.confidence,
       status,
       thumbnail: input.thumbnail ?? null,
+      eventType: input.eventType,
       createdAt: input.timestamp ? new Date(input.timestamp) : undefined,
     });
 

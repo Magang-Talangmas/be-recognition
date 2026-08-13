@@ -108,6 +108,7 @@ model RecognitionEvent {
   confidence Float              // 0-100
   status     String   @default("Verified") // Verified | Unknown
   isConfirm  String   @default("PENDING") // PENDING | CONFIRMED
+  eventType  String?
   thumbnail  String?
   createdAt  DateTime @default(now())
   notifications Notification[]
@@ -115,6 +116,7 @@ model RecognitionEvent {
   @@index([cameraId])
   @@index([employeeId])
   @@index([status])
+  @@index([eventType])
   @@index([createdAt])
   @@map("recognition_events")
 }
