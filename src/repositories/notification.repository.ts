@@ -42,6 +42,17 @@ export class NotificationRepository {
               isLate: true,
             },
           },
+          recognition: {
+            select: {
+              id: true,
+              employeeId: true,
+              cameraId: true,
+              confidence: true,
+              thumbnail: true,
+              status: true,
+              createdAt: true,
+            },
+          },
         },
       }),
       this.prisma.notification.count({ where }),
@@ -55,6 +66,7 @@ export class NotificationRepository {
       where: { id },
       include: {
         attendance: true,
+        recognition: true,
       },
     });
   }

@@ -182,6 +182,18 @@ export class LiveMonitoringService {
     const dto = toRecognitionDTO(event, cameraName, employeeName, notification?.id ?? null);
     liveSseHub.publish('unknown', dto);
 
+    // Simpan notifikasi konfirmasi ke database agar mobile bisa menampilkan
+    // UI Snapshot Foto + Tombol Terima/Tolak.
+    const confirmationNotification = input.employeeId
+      ? await this.safeCreateNotification({
+          type: 'REQUIRE_CONFIRMATION',
+          title: 'Konfirmasi Kehadiran Anda',
+          description: `Sistem mendeteksi Anda di kamera ${cameraName}. Apakah ini benar?`,
+          employeeId: input.employeeId,
+          recognitionId: event.id,
+        })
+      : null;
+
     // Kirim push notification ke mobile karyawan yang terdeteksi untuk konfirmasi kehadiran
     if (input.employeeId) {
       const fcmToken = await this.repository.findEmployeeFcmToken(input.employeeId).catch(() => null);
@@ -193,6 +205,7 @@ export class LiveMonitoringService {
           {
             intentAction: 'com.example.javatraining.CONFIRM_RECOGNITION',
             recognitionEventId: event.id,
+            notificationId: confirmationNotification?.id ?? '',
             employeeId: input.employeeId,
             cameraId: input.cameraId,
             timestamp: event.createdAt.toISOString(),
@@ -298,12 +311,16 @@ export class LiveMonitoringService {
     type: LiveNotificationType;
     title: string;
     description: string;
+    employeeId?: string;
+    recognitionId?: string;
   }): Promise<Notification | null> {
     try {
       return await this.repository.createNotification({
         type: data.type,
         title: data.title,
         description: data.description,
+        employeeId: data.employeeId ?? null,
+        recognitionId: data.recognitionId ?? null,
       });
     } catch (error) {
       logger.error('Gagal menyimpan notifikasi live', {

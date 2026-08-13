@@ -108,6 +108,8 @@ model RecognitionEvent {
   thumbnail  String?
   createdAt  DateTime @default(now())
 
+  notifications Notification[]
+
   @@index([cameraId])
   @@index([employeeId])
   @@index([status])
@@ -146,6 +148,7 @@ model Notification {
   id           String      @id @default(cuid())
   attendanceId String?
   employeeId   String? // denormalized "EMP-xxx" untuk notifikasi reminder tanpa attendance
+  recognitionId String? // UUID dari recognition_events untuk notifikasi REQUIRE_CONFIRMATION
   type         String      @default("INFO")
   title        String
   description  String
@@ -153,9 +156,11 @@ model Notification {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  recognition  RecognitionEvent? @relation(fields: [recognitionId], references: [id], onDelete: SetNull)
 
   @@index([attendanceId])
   @@index([employeeId])
+  @@index([recognitionId])
   @@map("notifications")
 }
 

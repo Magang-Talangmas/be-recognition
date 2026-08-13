@@ -5,7 +5,8 @@ export type LiveNotificationType =
   | 'unknown'
   | 'cctv'
   | 'recognition'
-  | 'system';
+  | 'system'
+  | 'REQUIRE_CONFIRMATION';
 
 export interface LiveFeedDTO {
   id: string; // cameraId (CAM-XX) sesuai kontrak frontend
