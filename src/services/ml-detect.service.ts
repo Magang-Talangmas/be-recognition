@@ -93,16 +93,23 @@ export class MlDetectService {
       // Ambil snapshot 1x saja per deteksi jika ada setidaknya 1 wajah valid
       if (!snapshotAttempted) {
         snapshotAttempted = true;
+        let snapshotUrl = '';
         try {
-          const snapshotUrl = env.ML_DETECT_URL.replace('/detect', '/snapshot');
+          // Selalu gunakan origin host:port dari URL ML Detect agar robust
+          const parsedUrl = new URL(env.ML_DETECT_URL);
+          snapshotUrl = `${parsedUrl.origin}/snapshot`;
+          
           const snapRes = await fetch(snapshotUrl, { signal: AbortSignal.timeout(3000) });
           if (snapRes.ok) {
             const arrayBuffer = await snapRes.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
             sharedThumbnail = await uploadRecognitionSnapshot(buffer);
+          } else {
+            logger.warn(`Gagal mengambil snapshot CCTV: HTTP ${snapRes.status}`, { snapshotUrl });
           }
         } catch (err) {
-          logger.warn('Gagal mengambil/upload snapshot CCTV', {
+          logger.warn('Error saat mengambil/upload snapshot CCTV', {
+            snapshotUrl,
             error: err instanceof Error ? err.message : 'unknown',
           });
         }
