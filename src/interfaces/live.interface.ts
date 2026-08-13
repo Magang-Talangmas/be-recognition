@@ -73,6 +73,7 @@ export interface RecordRecognitionInput {
   status?: RecognitionStatus;
   thumbnail?: string | null;
   timestamp?: string; // ISO 8601
+  eventType?: 'CHECK_IN' | 'CHECK_OUT';
 }
 
 /** Data payload event checkin untuk SSE. */
