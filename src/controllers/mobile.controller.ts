@@ -310,9 +310,10 @@ export class MobileController {
         throw new UnauthorizedError('Akses ditolak');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const event = await this.liveMonitoringRepository.findRecognitionById(id);
+
       if (!event) {
         throw new NotFoundError('Recognition event tidak ditemukan');
       }
@@ -370,9 +371,10 @@ export class MobileController {
         throw new UnauthorizedError('Akses ditolak');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const event = await this.liveMonitoringRepository.findRecognitionById(id);
+
       if (!event) {
         throw new NotFoundError('Recognition event tidak ditemukan');
       }

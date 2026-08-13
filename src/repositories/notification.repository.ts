@@ -13,7 +13,7 @@ export class NotificationRepository {
     employeeId: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<{ data: (Notification & { imageUrl: string | null })[]; total: number }> {
+  ) {
     const skip = (page - 1) * limit;
 
     const where: Prisma.NotificationWhereInput = {
@@ -42,32 +42,28 @@ export class NotificationRepository {
               isLate: true,
             },
           },
+          // Prisma join via FK — ambil thumbnail dari RecognitionEvent terkait
+          recognitionEvent: {
+            select: {
+              id: true,
+              thumbnail: true,
+              status: true,
+            },
+          },
         },
       }),
       this.prisma.notification.count({ where }),
     ]);
 
-    // Batch-fetch thumbnails dari recognition_events untuk notifikasi konfirmasi CCTV
-    const recognitionIds = data
-      .filter((n) => n.recognitionId)
-      .map((n) => n.recognitionId!);
-
-    const thumbnailMap = new Map<string, string | null>();
-    if (recognitionIds.length > 0) {
-      const events = await this.prisma.recognitionEvent.findMany({
-        where: { id: { in: recognitionIds } },
-        select: { id: true, thumbnail: true },
-      });
-      events.forEach((e) => thumbnailMap.set(e.id, e.thumbnail));
-    }
-
+    // Flatten imageUrl ke root object agar mobile tidak perlu nested access
     const enriched = data.map((n) => ({
       ...n,
-      imageUrl: n.recognitionId ? (thumbnailMap.get(n.recognitionId) ?? null) : null,
+      imageUrl: n.recognitionEvent?.thumbnail ?? null,
     }));
 
     return { data: enriched, total };
   }
+
 
 
   async findById(id: string) {

@@ -102,13 +102,14 @@ model Camera {
 }
 
 model RecognitionEvent {
-  id         String   @id @default(cuid())
-  employeeId String?            // null = Unknown (wajah tidak dikenal)
-  cameraId   String             // CAM-xx (mengikuti pola Attendance.cameraId)
-  confidence Float              // 0-100
-  status     String   @default("Verified") // Verified | Unknown
-  thumbnail  String?
-  createdAt  DateTime @default(now())
+  id            String         @id @default(cuid())
+  employeeId    String?                       // null = Unknown (wajah tidak dikenal)
+  cameraId      String                        // CAM-xx (mengikuti pola Attendance.cameraId)
+  confidence    Float                         // 0-100
+  status        String   @default("Verified") // Verified | Unknown | Rejected
+  thumbnail     String?
+  createdAt     DateTime @default(now())
+  notifications Notification[]               // back-reference dari notifikasi konfirmasi CCTV
 
   @@index([cameraId])
   @@index([employeeId])
@@ -116,6 +117,7 @@ model RecognitionEvent {
   @@index([createdAt])
   @@map("recognition_events")
 }
+
 
 enum AttendanceStatus {
   CHECKED_IN
@@ -145,23 +147,25 @@ model WorkSchedule {
 }
 
 model Notification {
-  id             String      @id @default(cuid())
-  attendanceId   String?
-  employeeId     String? // denormalized "EMP-xxx" untuk notifikasi reminder tanpa attendance
-  recognitionId  String?     // ID RecognitionEvent terkait (untuk notifikasi konfirmasi CCTV)
-  type           String      @default("INFO")
-  title          String
-  description    String
-  isRead         Boolean     @default(false)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  attendance     Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  id               String            @id @default(cuid())
+  attendanceId     String?
+  employeeId       String?           // denormalized "EMP-xxx" untuk notifikasi reminder tanpa attendance
+  recognitionId    String?           // FK ke RecognitionEvent (notifikasi konfirmasi CCTV)
+  type             String            @default("INFO")
+  title            String
+  description      String
+  isRead           Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  attendance       Attendance?       @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  recognitionEvent RecognitionEvent? @relation(fields: [recognitionId], references: [id], onDelete: SetNull)
 
   @@index([attendanceId])
   @@index([employeeId])
   @@index([recognitionId])
   @@map("notifications")
 }
+
 
 
 model Settings {
