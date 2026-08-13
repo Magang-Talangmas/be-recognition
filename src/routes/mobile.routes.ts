@@ -41,6 +41,20 @@ export const createMobileRouter = (
   router.post('/attendance', authMiddleware, requireRole('EMPLOYEE'), uploadCheckinPhotos, mobileController.checkIn);
 
   /**
+   * @route   POST /api/v1/mobile/recognition/:id/confirm
+   * @desc    Konfirmasi data pengenalan wajah dari CCTV agar masuk ke absensi
+   * @access  EMPLOYEE
+   */
+  router.post('/recognition/:id/confirm', authMiddleware, requireRole('EMPLOYEE'), mobileController.confirmRecognition);
+
+  /**
+   * @route   POST /api/v1/mobile/recognition/:id/reject
+   * @desc    Menolak data pengenalan wajah (Bukan Saya)
+   * @access  EMPLOYEE
+   */
+  router.post('/recognition/:id/reject', authMiddleware, requireRole('EMPLOYEE'), mobileController.rejectRecognition);
+
+  /**
    * @route   PATCH /api/v1/mobile/device-token
    * @desc    Update FCM Device Token untuk Push Notification
    * @access  EMPLOYEE

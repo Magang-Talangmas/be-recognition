@@ -13,6 +13,7 @@ import { ScheduleRepository } from '../repositories/schedule.repository';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { logger } from '../config/logger';
 import { sendPushNotification } from '../lib/firebase';
+import { captureAndUploadSnapshot } from '../lib/storage';
 import { liveSseHub } from '../lib/live/sse-hub';
 import {
   REDIS_ATTENDANCE_TTL,
@@ -182,7 +183,7 @@ export class AttendanceService {
       }
     }
 
-    await this.attendanceRepository.create({
+    const attendance = await this.attendanceRepository.create({
       externalEventId: data.externalEventId,
       employeeId: data.employeeId,
       cameraId: data.cameraId,
@@ -193,6 +194,22 @@ export class AttendanceService {
       isLate,
       photoUrl: data.photoUrl,
     });
+
+    if (data.eventType === 'CHECK_IN') {
+      // Jalankan sebagai background task (fire-and-forget) agar tidak menunda respon API
+      captureAndUploadSnapshot(data.employeeId)
+        .then((snapshotUrl) => {
+          if (snapshotUrl) {
+            this.attendanceRepository.updateSnapshotUrl(attendance.id, snapshotUrl).catch(() => {});
+          }
+        })
+        .catch((err) => {
+          logger.error('Gagal mengambil snapshot otomatis', {
+            error: err instanceof Error ? err.message : 'unknown',
+            employeeId: data.employeeId,
+          });
+        });
+    }
 
     logger.info('Attendance berhasil disimpan (Status: PENDING)', {
       cameraId: data.cameraId,
