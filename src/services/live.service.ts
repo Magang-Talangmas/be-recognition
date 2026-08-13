@@ -202,7 +202,7 @@ export class LiveMonitoringService {
           externalEventId: `cctv-${event.id}`,
           employeeId: input.employeeId,
           cameraId: input.cameraId,
-          eventType: 'CHECK_IN',
+          eventType: event.eventType || 'CHECK_IN',
           similarity: Math.round(((input.confidence ?? 0) / 100) * 10000) / 10000,
           timestamp: event.createdAt.toISOString(),
         });
@@ -229,12 +229,14 @@ export class LiveMonitoringService {
     const dto = toRecognitionDTO(event, cameraName, employeeName, notification?.id ?? null);
     liveSseHub.publish('unknown', dto);
 
+    const confirmTitle = event.eventType === 'CHECK_OUT' ? 'Konfirmasi Kepulangan Anda' : 'Konfirmasi Kehadiran Masuk';
+    
     // Simpan notifikasi konfirmasi ke database agar mobile bisa menampilkan
     // UI Snapshot Foto + Tombol Terima/Tolak.
     const confirmationNotification = input.employeeId
       ? await this.safeCreateNotification({
           type: 'REQUIRE_CONFIRMATION',
-          title: 'Konfirmasi Kehadiran Anda',
+          title: confirmTitle,
           description: `Sistem mendeteksi Anda di kamera ${cameraName}. Apakah ini benar?`,
           employeeId: input.employeeId,
           recognitionId: event.id,
@@ -246,7 +248,7 @@ export class LiveMonitoringService {
       // Buat notifikasi khusus employee (muncul di GET /mobile/notifications)
       await this.safeCreateNotification({
         type: 'recognition',
-        title: 'Konfirmasi Kehadiran Anda',
+        title: confirmTitle,
         description: `Sistem mendeteksi Anda di kamera ${cameraName}. Apakah ini benar?`,
         employeeId: input.employeeId,
         recognitionId: event.id,
@@ -256,7 +258,7 @@ export class LiveMonitoringService {
       if (fcmToken) {
         sendPushNotification(
           fcmToken,
-          'Konfirmasi Kehadiran Anda',
+          confirmTitle,
           `Sistem mendeteksi Anda di kamera ${cameraName}. Apakah ini benar?`,
           {
             intentAction: 'com.example.javatraining.CONFIRM_RECOGNITION',
