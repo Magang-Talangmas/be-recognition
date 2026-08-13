@@ -1,12 +1,12 @@
 export type RecognitionStatus = 'Verified' | 'Unknown' | 'Rejected';
 
-
 export type LiveNotificationType =
   | 'checkin'
   | 'unknown'
   | 'cctv'
   | 'recognition'
-  | 'system';
+  | 'system'
+  | 'REQUIRE_CONFIRMATION';
 
 export interface LiveFeedDTO {
   id: string; // cameraId (CAM-XX) sesuai kontrak frontend
@@ -28,6 +28,7 @@ export interface LiveRecognitionDTO {
   timestamp: string; // ISO 8601
   confidence: number; // 0-100
   status: RecognitionStatus;
+  isConfirm: string;
   thumbnail: string | null;
   notificationId: string | null; // untuk sinkronisasi read/dedup di frontend
 }

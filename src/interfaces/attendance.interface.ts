@@ -21,6 +21,7 @@ export interface AttendanceCreateInput {
   confirmationStatus?: ConfirmationStatus;
   isLate?: boolean;
   photoUrl?: string;
+  snapshotUrl?: string;
 }
 
 export interface AttendanceRecord {
@@ -34,6 +35,7 @@ export interface AttendanceRecord {
   confirmationStatus: ConfirmationStatus;
   isLate: boolean | null;
   photoUrl: string | null;
+  snapshotUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

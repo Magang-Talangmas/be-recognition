@@ -42,12 +42,15 @@ export class NotificationRepository {
               isLate: true,
             },
           },
-          // Prisma join via FK — ambil thumbnail dari RecognitionEvent terkait
-          recognitionEvent: {
+          recognition: {
             select: {
               id: true,
+              employeeId: true,
+              cameraId: true,
+              confidence: true,
               thumbnail: true,
               status: true,
+              createdAt: true,
             },
           },
         },
@@ -71,6 +74,7 @@ export class NotificationRepository {
       where: { id },
       include: {
         attendance: true,
+        recognition: true,
       },
     });
   }

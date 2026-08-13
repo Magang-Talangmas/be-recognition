@@ -23,6 +23,7 @@ interface DetectResult {
 export class MlDetectService {
   private timer: NodeJS.Timeout | null = null;
   private lastRecorded = new Map<string, number>();
+  private isPolling = false;
 
   constructor(private readonly liveService: LiveMonitoringService) {}
 
@@ -48,86 +49,93 @@ export class MlDetectService {
   }
 
   private async poll(): Promise<void> {
-    let res: Response;
+    if (this.isPolling) return;
+    this.isPolling = true;
+
     try {
-      res = await fetch(env.ML_DETECT_URL, { signal: AbortSignal.timeout(5000) });
-    } catch (err) {
-      logger.warn('ML /detect tidak dapat dihubungi', {
-        error: err instanceof Error ? err.message : 'unknown',
-      });
-      return;
-    }
-
-    if (!res.ok) {
-      logger.warn('ML /detect merespon dengan status non-OK', { status: res.status });
-      return;
-    }
-
-    let data: DetectResult;
-    try {
-      data = (await res.json()) as DetectResult;
-    } catch (err) {
-      logger.warn('Respon ML /detect bukan JSON valid', {
-        error: err instanceof Error ? err.message : 'unknown',
-      });
-      return;
-    }
-
-    if (!Array.isArray(data.details)) {
-      return;
-    }
-
-    const now = Date.now();
-    const dedupMs = env.ML_DETECT_DEDUP_SECONDS * 1000;
-
-    let sharedThumbnail: string | undefined = undefined;
-    let snapshotAttempted = false;
-
-    for (const detail of data.details) {
-      const identity = detail.name || 'Unknown';
-      const last = this.lastRecorded.get(identity);
-      if (last !== undefined && now - last < dedupMs) {
-        continue;
+      let res: Response;
+      try {
+        res = await fetch(env.ML_DETECT_URL, { signal: AbortSignal.timeout(5000) });
+      } catch (err) {
+        logger.warn('ML /detect tidak dapat dihubungi', {
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+        return;
       }
 
-      // Ambil snapshot 1x saja per deteksi jika ada setidaknya 1 wajah valid
-      if (!snapshotAttempted) {
-        snapshotAttempted = true;
-        let snapshotUrl = '';
-        try {
-          // Selalu gunakan origin host:port dari URL ML Detect agar robust
-          const parsedUrl = new URL(env.ML_DETECT_URL);
-          snapshotUrl = `${parsedUrl.origin}/snapshot`;
-          
-          const snapRes = await fetch(snapshotUrl, { signal: AbortSignal.timeout(3000) });
-          if (snapRes.ok) {
-            const arrayBuffer = await snapRes.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            sharedThumbnail = await uploadRecognitionSnapshot(buffer);
-          } else {
-            logger.warn(`Gagal mengambil snapshot CCTV: HTTP ${snapRes.status}`, { snapshotUrl });
-          }
-        } catch (err) {
-          logger.warn('Error saat mengambil/upload snapshot CCTV', {
-            snapshotUrl,
-            error: err instanceof Error ? err.message : 'unknown',
-          });
+      if (!res.ok) {
+        logger.warn('ML /detect merespon dengan status non-OK', { status: res.status });
+        return;
+      }
+
+      let data: DetectResult;
+      try {
+        data = (await res.json()) as DetectResult;
+      } catch (err) {
+        logger.warn('Respon ML /detect bukan JSON valid', {
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+        return;
+      }
+
+      if (!Array.isArray(data.details)) {
+        return;
+      }
+
+      const now = Date.now();
+      const dedupMs = env.ML_DETECT_DEDUP_SECONDS * 1000;
+
+      let sharedThumbnail: string | undefined = undefined;
+      let snapshotAttempted = false;
+
+      for (const detail of data.details) {
+        const identity = detail.name || 'Unknown';
+        const last = this.lastRecorded.get(identity);
+        if (last !== undefined && now - last < dedupMs) {
+          continue;
         }
+
+        // Ambil snapshot 1x saja per deteksi jika ada setidaknya 1 wajah valid
+        if (!snapshotAttempted) {
+          snapshotAttempted = true;
+          let snapshotUrl = '';
+          try {
+            // Selalu gunakan origin host:port dari URL ML Detect agar robust
+            const parsedUrl = new URL(env.ML_DETECT_URL);
+            snapshotUrl = `${parsedUrl.origin}/snapshot`;
+            
+            const snapRes = await fetch(snapshotUrl, { signal: AbortSignal.timeout(3000) });
+            if (snapRes.ok) {
+              const arrayBuffer = await snapRes.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              sharedThumbnail = await uploadRecognitionSnapshot(buffer);
+            } else {
+              logger.warn(`Gagal mengambil snapshot CCTV: HTTP ${snapRes.status}`, { snapshotUrl });
+            }
+          } catch (err) {
+            logger.warn('Error saat mengambil/upload snapshot CCTV', {
+              snapshotUrl,
+              error: err instanceof Error ? err.message : 'unknown',
+            });
+          }
+        }
+
+        // Status dari ML engine ke recognition_events selalu "Unknown".
+        // Perubahan ke "Verified" atau "Rejected" dilakukan manual oleh admin.
+        const input: RecordRecognitionInput = {
+          employeeId: identity === 'Unknown' ? undefined : identity,
+          cameraId: env.ML_DETECT_CAMERA_ID,
+          confidence: Math.max(0, Math.min(100, detail.similarity)),
+          status: 'Unknown',
+          thumbnail: sharedThumbnail,
+          timestamp: new Date().toISOString(),
+        };
+
+        this.lastRecorded.set(identity, now);
+        await this.liveService.recordRecognition(input);
       }
-
-      // Status dari ML engine ke recognition_events selalu "Unknown".
-      // Perubahan ke "Verified" atau "Rejected" dilakukan manual oleh admin.
-      const input: RecordRecognitionInput = {
-        employeeId: identity === 'Unknown' ? undefined : identity,
-        cameraId: env.ML_DETECT_CAMERA_ID,
-        confidence: Math.max(0, Math.min(100, detail.similarity)),
-        status: 'Unknown',
-        thumbnail: sharedThumbnail,
-        timestamp: new Date().toISOString(),
-      };
-
-      this.lastRecorded.set(identity, now);
-      await this.liveService.recordRecognition(input);
+    } finally {
+      this.isPolling = false;
     }
   }
 }
