@@ -78,5 +78,12 @@ export const createMobileRouter = (
    */
   router.patch('/recognition/:id/confirm', authMiddleware, requireRole('EMPLOYEE'), mobileController.confirmRecognition);
 
+  /**
+   * @route   PATCH /api/v1/mobile/recognition/:id/reject
+   * @desc    Tolak detection CCTV ('Bukan Saya')
+   * @access  EMPLOYEE
+   */
+  router.patch('/recognition/:id/reject', authMiddleware, requireRole('EMPLOYEE'), mobileController.rejectRecognition);
+
   return router;
 };
