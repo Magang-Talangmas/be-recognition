@@ -136,3 +136,32 @@ export async function uploadCheckinPhoto(
 
   return data.publicUrl;
 }
+
+/**
+ * Upload snapshot dari stream CCTV ke Supabase Storage.
+ * Path: recognitions/{timestamp}-{uuid}.jpg
+ */
+export async function uploadRecognitionSnapshot(
+  buffer: Buffer,
+): Promise<string> {
+  const fileName = `recognitions/${Date.now()}-${randomUUID()}.jpg`;
+
+  const { error } = await getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .upload(fileName, buffer, {
+      contentType: 'image/jpeg',
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`Upload snapshot recognition ke Supabase gagal: ${error.message}`);
+  }
+
+  const { data } = getSupabase().storage
+    .from(env.SUPABASE_STORAGE_BUCKET)
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}
+
