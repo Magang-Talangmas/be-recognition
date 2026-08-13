@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { AttendanceService } from '../services/attendance.service';
+import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { mobileLoginSchema, deviceTokenSchema, changePasswordSchema } from '../validators/mobile.validator';
 import { env } from '../config/env';
 import { HTTP_STATUS } from '../constants/http.constants';
@@ -294,12 +295,6 @@ export class MobileController {
     }
   };
 
-  /**
-   * Konfirmasi kehadiran dari notifikasi CCTV recognition.
-   * Employee mengkonfirmasi bahwa deteksi wajah pada recognition_event adalah benar.
-   * Status recognition_event diubah dari 'Unknown' ke 'Verified'.
-   * Tidak menyentuh tabel attendances.
-   */
   confirmRecognition = async (
     req: Request,
     res: Response,
@@ -310,45 +305,41 @@ export class MobileController {
         throw new UnauthorizedError('Akses ditolak');
       }
 
-      const id = req.params.id as string;
+      const recognitionId = req.params['id'] as string;
+      const recognition = await this.liveMonitoringRepository.findRecognitionById(recognitionId);
 
-      const event = await this.liveMonitoringRepository.findRecognitionById(id);
-
-      if (!event) {
-        throw new NotFoundError('Recognition event tidak ditemukan');
+      if (!recognition) {
+        throw new NotFoundError('Data deteksi wajah tidak ditemukan');
       }
 
-      // Pastikan recognition ini milik employee yang login
-      if (event.employeeId !== req.user.id) {
-        throw new UnauthorizedError('Akses ditolak ke recognition event ini');
+      if (recognition.employeeId !== req.user.id) {
+        throw new UnauthorizedError('Anda tidak berhak mengonfirmasi data ini');
       }
 
-      if (event.status === 'Verified') {
-        res.status(HTTP_STATUS.OK).json({
-          success: true,
-          message: 'Kehadiran sudah dikonfirmasi sebelumnya',
-          data: { id: event.id, status: event.status },
-        });
-        return;
+      if ((recognition as any).isConfirm === 'CONFIRMED') {
+        throw new ValidationError('Data ini sudah dikonfirmasi sebelumnya');
       }
 
-      const updated = await this.liveMonitoringRepository.updateRecognitionStatus(id, 'Verified');
+      // Update status menjadi Verified dan isConfirm menjadi CONFIRMED
+      await this.liveMonitoringRepository.updateRecognitionStatusAndConfirm(recognitionId, 'Verified', 'CONFIRMED');
 
-      logger.info('Employee mengkonfirmasi recognition event via mobile', {
-        recognitionEventId: id,
-        employeeId: req.user.id,
+      // Pindahkan ke tabel Attendances (via AttendanceService)
+      const isLate = await this.attendanceService.processAttendance({
+        externalEventId: recognition.id, // Gunakan ID recognition sebagai externalEventId
+        employeeId: recognition.employeeId,
+        cameraId: recognition.cameraId,
+        eventType: 'CHECK_IN', // Default ke CHECK_IN (bisa diexpand dari request body jika diperlukan)
+        similarity: recognition.confidence,
+        timestamp: recognition.createdAt.toISOString(),
+        photoUrl: recognition.thumbnail ?? undefined,
       });
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
-        message: 'Kehadiran berhasil dikonfirmasi',
+        message: 'Konfirmasi berhasil, data telah masuk ke daftar absensi',
         data: {
-          id: updated.id,
-          status: updated.status,
-          employeeId: updated.employeeId,
-          cameraId: updated.cameraId,
-          confidence: updated.confidence,
-          timestamp: updated.createdAt.toISOString(),
+          isLate: isLate ?? false,
+          timestamp: new Date().toISOString(),
         },
       });
     } catch (error) {
@@ -356,11 +347,6 @@ export class MobileController {
     }
   };
 
-  /**
-   * Tolak detection CCTV ('Bukan Saya').
-   * Status recognition_event diubah dari 'Unknown' ke 'Rejected'.
-   * Tidak menyentuh tabel attendances.
-   */
   rejectRecognition = async (
     req: Request,
     res: Response,
@@ -371,45 +357,31 @@ export class MobileController {
         throw new UnauthorizedError('Akses ditolak');
       }
 
-      const id = req.params.id as string;
+      const recognitionId = req.params['id'] as string;
+      const recognition = await this.liveMonitoringRepository.findRecognitionById(recognitionId);
 
-      const event = await this.liveMonitoringRepository.findRecognitionById(id);
-
-      if (!event) {
-        throw new NotFoundError('Recognition event tidak ditemukan');
+      if (!recognition) {
+        throw new NotFoundError('Data deteksi wajah tidak ditemukan');
       }
 
-      if (event.employeeId !== req.user.id) {
-        throw new UnauthorizedError('Akses ditolak ke recognition event ini');
+      if (recognition.employeeId !== req.user.id) {
+        throw new UnauthorizedError('Anda tidak berhak menolak data ini');
       }
 
-      if (event.status === 'Rejected') {
-        res.status(HTTP_STATUS.OK).json({
-          success: true,
-          message: 'Detection sudah ditolak sebelumnya',
-          data: { id: event.id, status: event.status },
-        });
-        return;
+      if ((recognition as any).isConfirm === 'CONFIRMED') {
+        throw new ValidationError('Data ini sudah dikonfirmasi sebelumnya');
+      }
+      
+      if ((recognition as any).isConfirm === 'REJECTED') {
+        throw new ValidationError('Data ini sudah ditolak sebelumnya');
       }
 
-      const updated = await this.liveMonitoringRepository.updateRecognitionStatus(id, 'Rejected');
-
-      logger.info('Employee menolak recognition event via mobile (Bukan Saya)', {
-        recognitionEventId: id,
-        employeeId: req.user.id,
-      });
+      // Update status menjadi Rejected dan isConfirm menjadi REJECTED
+      await this.liveMonitoringRepository.updateRecognitionStatusAndConfirm(recognitionId, 'Rejected', 'REJECTED');
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
-        message: 'Detection berhasil ditolak',
-        data: {
-          id: updated.id,
-          status: updated.status,
-          employeeId: updated.employeeId,
-          cameraId: updated.cameraId,
-          confidence: updated.confidence,
-          timestamp: updated.createdAt.toISOString(),
-        },
+        message: 'Data deteksi berhasil ditolak',
       });
     } catch (error) {
       next(error);

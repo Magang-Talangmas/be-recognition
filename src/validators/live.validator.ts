@@ -11,7 +11,7 @@ const optionalString = <T extends z.ZodTypeAny>(schema: T) =>
 export const recognitionQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(8),
   cameraId: optionalString(z.string().trim()),
-  status: z.enum(['Verified', 'Unknown']).optional(),
+  status: z.enum(['Verified', 'Unknown', 'Rejected']).optional(),
 });
 
 export const notificationQuerySchema = z.object({
@@ -30,7 +30,7 @@ export const recordRecognitionSchema = z.object({
     .number()
     .min(0, 'confidence minimal 0')
     .max(100, 'confidence maksimal 100'),
-  status: z.enum(['Verified', 'Unknown']).optional(),
+  status: z.enum(['Verified', 'Unknown', 'Rejected']).optional(),
   thumbnail: optionalString(z.string().trim()),
   timestamp: optionalString(z.string()),
 });

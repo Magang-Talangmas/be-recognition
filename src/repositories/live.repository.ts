@@ -126,22 +126,28 @@ export class LiveMonitoringRepository {
     });
   }
 
-  async findEmployeeFcmToken(employeeId: string): Promise<string | null> {
-    const employee = await this.prisma.employee.findUnique({
-      where: { employeeId },
-      select: { fcmToken: true },
+  async updateThumbnail(id: string, thumbnail: string | null): Promise<void> {
+    await this.prisma.recognitionEvent.update({
+      where: { id },
+      data: { thumbnail },
     });
-    return employee?.fcmToken ?? null;
   }
 
   async findRecognitionById(id: string): Promise<RecognitionEvent | null> {
     return this.prisma.recognitionEvent.findUnique({ where: { id } });
   }
 
-  async updateRecognitionStatus(id: string, status: string): Promise<RecognitionEvent> {
+  async updateRecognitionConfirm(id: string, isConfirm: string): Promise<RecognitionEvent> {
     return this.prisma.recognitionEvent.update({
       where: { id },
-      data: { status },
+      data: { isConfirm: isConfirm as any }, // cast as any because we just added it
+    });
+  }
+
+  async updateRecognitionStatusAndConfirm(id: string, status: string, isConfirm: string): Promise<RecognitionEvent> {
+    return this.prisma.recognitionEvent.update({
+      where: { id },
+      data: { status, isConfirm: isConfirm as any },
     });
   }
 }

@@ -9,6 +9,7 @@ import { Camera, Notification, RecognitionEvent } from '@prisma/client';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { liveSseHub } from '../lib/live/sse-hub';
 import { logger } from '../config/logger';
+import { captureAndUploadSnapshot } from '../lib/storage';
 import { NotFoundError } from '../errors/NotFoundError';
 import { sendPushNotification } from '../lib/firebase';
 import {
@@ -59,6 +60,7 @@ function toRecognitionDTO(
     timestamp: event.createdAt.toISOString(),
     confidence: event.confidence,
     status: event.status as RecognitionStatus,
+    isConfirm: (event as any).isConfirm ?? 'PENDING',
     thumbnail: event.thumbnail,
     notificationId,
   };
@@ -170,6 +172,21 @@ export class LiveMonitoringService {
       thumbnail: input.thumbnail ?? null,
       createdAt: input.timestamp ? new Date(input.timestamp) : undefined,
     });
+
+    if (!input.thumbnail && input.employeeId) {
+      captureAndUploadSnapshot(input.employeeId)
+        .then((url) => {
+          if (url) {
+            this.repository.updateThumbnail(event.id, url).catch(() => {});
+          }
+        })
+        .catch((err) => {
+          logger.error('Gagal mengambil thumbnail otomatis', {
+            error: err instanceof Error ? err.message : 'unknown',
+            employeeId: input.employeeId,
+          });
+        });
+    }
 
     const cameraName = camera?.name ?? input.cameraId;
 
