@@ -97,7 +97,10 @@ export const createRouter = (): Router => {
   const scheduleService = new ScheduleService(scheduleRepository);
   const cctvService = new CctvService(cctvRepository);
   const reportService = new ReportService(reportRepository);
-  const liveMonitoringService = new LiveMonitoringService(liveMonitoringRepository);
+  const liveMonitoringService = new LiveMonitoringService(
+    liveMonitoringRepository,
+    attendanceService,
+  );
   const mlDetectService = new MlDetectService(liveMonitoringService);
   if (env.NODE_ENV !== 'test') {
     mlDetectService.start();

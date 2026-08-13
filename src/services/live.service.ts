@@ -7,6 +7,7 @@ dayjs.extend(timezone);
 
 import { Camera, Notification, RecognitionEvent } from '@prisma/client';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
+import { AttendanceService } from './attendance.service';
 import { liveSseHub } from '../lib/live/sse-hub';
 import { logger } from '../config/logger';
 import { NotFoundError } from '../errors/NotFoundError';
@@ -77,7 +78,10 @@ function toNotificationDTO(notification: Notification): LiveNotificationDTO {
 }
 
 export class LiveMonitoringService {
-  constructor(private readonly repository: LiveMonitoringRepository) {}
+  constructor(
+    private readonly repository: LiveMonitoringRepository,
+    private readonly attendanceService?: AttendanceService,
+  ) {}
 
   async getFeeds(): Promise<LiveFeedDTO[]> {
     const cameras = await this.repository.findFeeds();
@@ -172,6 +176,32 @@ export class LiveMonitoringService {
     });
 
     const cameraName = camera?.name ?? input.cameraId;
+
+    // Catat absensi otomatis CHECK_IN saat wajah karyawan terdeteksi CCTV.
+    // isLate dihitung berdasarkan jadwal (custom schedule / fallback 08:00 WIB).
+    if (input.employeeId) {
+      try {
+        const isLate = await this.attendanceService?.processAttendance({
+          externalEventId: `cctv-${event.id}`,
+          employeeId: input.employeeId,
+          cameraId: input.cameraId,
+          eventType: 'CHECK_IN',
+          similarity: Math.round(((input.confidence ?? 0) / 100) * 10000) / 10000,
+          timestamp: event.createdAt.toISOString(),
+        });
+        logger.info('Absensi otomatis (CCTV detection) dicatat', {
+          employeeId: input.employeeId,
+          recognitionId: event.id,
+          isLate: isLate ?? null,
+        });
+      } catch (err) {
+        logger.error('Gagal mencatat absensi otomatis dari deteksi CCTV', {
+          employeeId: input.employeeId,
+          recognitionId: event.id,
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+      }
+    }
 
     const notification = await this.safeCreateNotification({
       type: 'unknown',
