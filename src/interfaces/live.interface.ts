@@ -1,4 +1,4 @@
-export type RecognitionStatus = 'Verified' | 'Unknown';
+export type RecognitionStatus = 'Verified' | 'Unknown' | 'Rejected';
 
 export type LiveNotificationType =
   | 'checkin'

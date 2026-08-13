@@ -319,8 +319,8 @@ export class MobileController {
         throw new ValidationError('Data ini sudah dikonfirmasi sebelumnya');
       }
 
-      // Update status menjadi CONFIRMED
-      await this.liveMonitoringRepository.updateRecognitionConfirm(recognitionId, 'CONFIRMED');
+      // Update status menjadi Verified dan isConfirm menjadi CONFIRMED
+      await this.liveMonitoringRepository.updateRecognitionStatusAndConfirm(recognitionId, 'Verified', 'CONFIRMED');
 
       // Pindahkan ke tabel Attendances (via AttendanceService)
       const isLate = await this.attendanceService.processAttendance({
@@ -340,6 +340,47 @@ export class MobileController {
           isLate: isLate ?? false,
           timestamp: new Date().toISOString(),
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  rejectRecognition = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user || req.user.role !== 'EMPLOYEE') {
+        throw new UnauthorizedError('Akses ditolak');
+      }
+
+      const recognitionId = req.params['id'] as string;
+      const recognition = await this.liveMonitoringRepository.findRecognitionById(recognitionId);
+
+      if (!recognition) {
+        throw new NotFoundError('Data deteksi wajah tidak ditemukan');
+      }
+
+      if (recognition.employeeId !== req.user.id) {
+        throw new UnauthorizedError('Anda tidak berhak menolak data ini');
+      }
+
+      if ((recognition as any).isConfirm === 'CONFIRMED') {
+        throw new ValidationError('Data ini sudah dikonfirmasi sebelumnya');
+      }
+      
+      if ((recognition as any).isConfirm === 'REJECTED') {
+        throw new ValidationError('Data ini sudah ditolak sebelumnya');
+      }
+
+      // Update status menjadi Rejected dan isConfirm menjadi REJECTED
+      await this.liveMonitoringRepository.updateRecognitionStatusAndConfirm(recognitionId, 'Rejected', 'REJECTED');
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Data deteksi berhasil ditolak',
       });
     } catch (error) {
       next(error);
