@@ -2,6 +2,8 @@ import { env } from '../config/env';
 import { logger } from '../config/logger';
 import { LiveMonitoringService } from './live.service';
 import { RecordRecognitionInput } from '../validators/live.validator';
+import { uploadRecognitionSnapshot } from '../lib/storage';
+
 
 interface DetectDetail {
   name: string;
@@ -78,11 +80,32 @@ export class MlDetectService {
     const now = Date.now();
     const dedupMs = env.ML_DETECT_DEDUP_SECONDS * 1000;
 
+    let sharedThumbnail: string | undefined = undefined;
+    let snapshotAttempted = false;
+
     for (const detail of data.details) {
       const identity = detail.name || 'Unknown';
       const last = this.lastRecorded.get(identity);
       if (last !== undefined && now - last < dedupMs) {
         continue;
+      }
+
+      // Ambil snapshot 1x saja per deteksi jika ada setidaknya 1 wajah valid
+      if (!snapshotAttempted) {
+        snapshotAttempted = true;
+        try {
+          const snapshotUrl = env.ML_DETECT_URL.replace('/detect', '/snapshot');
+          const snapRes = await fetch(snapshotUrl, { signal: AbortSignal.timeout(3000) });
+          if (snapRes.ok) {
+            const arrayBuffer = await snapRes.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            sharedThumbnail = await uploadRecognitionSnapshot(buffer);
+          }
+        } catch (err) {
+          logger.warn('Gagal mengambil/upload snapshot CCTV', {
+            error: err instanceof Error ? err.message : 'unknown',
+          });
+        }
       }
 
       // Status dari ML engine ke recognition_events selalu "Unknown".
@@ -92,6 +115,7 @@ export class MlDetectService {
         cameraId: env.ML_DETECT_CAMERA_ID,
         confidence: Math.max(0, Math.min(100, detail.similarity)),
         status: 'Unknown',
+        thumbnail: sharedThumbnail,
         timestamp: new Date().toISOString(),
       };
 
