@@ -375,8 +375,7 @@ export class MobileController {
         throw new ValidationError('Data ini sudah ditolak sebelumnya');
       }
 
-      // Update status menjadi Rejected dan isConfirm menjadi REJECTED
-      await this.liveMonitoringRepository.updateRecognitionStatusAndConfirm(recognitionId, 'Rejected', 'REJECTED');
+      await this.liveMonitoringRepository.updateRecognitionStatusAndConfirm(recognitionId, recognition.status, 'REJECTED');
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
