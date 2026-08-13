@@ -132,4 +132,15 @@ export class LiveMonitoringRepository {
       data: { thumbnail },
     });
   }
+
+  async findRecognitionById(id: string): Promise<RecognitionEvent | null> {
+    return this.prisma.recognitionEvent.findUnique({ where: { id } });
+  }
+
+  async updateRecognitionConfirm(id: string, isConfirm: string): Promise<RecognitionEvent> {
+    return this.prisma.recognitionEvent.update({
+      where: { id },
+      data: { isConfirm: isConfirm as any }, // cast as any because we just added it
+    });
+  }
 }

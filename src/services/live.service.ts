@@ -59,6 +59,7 @@ function toRecognitionDTO(
     timestamp: event.createdAt.toISOString(),
     confidence: event.confidence,
     status: event.status as RecognitionStatus,
+    isConfirm: (event as any).isConfirm ?? 'PENDING',
     thumbnail: event.thumbnail,
     notificationId,
   };

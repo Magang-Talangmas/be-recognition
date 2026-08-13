@@ -104,6 +104,7 @@ describe('LiveMonitoringService', () => {
             cameraName: 'Pintu Masuk',
             confidence: 96.4,
             status: 'Verified',
+            isConfirm: 'PENDING',
             timestamp: '2026-08-06T08:02:11.000Z',
           }),
         ],
@@ -124,6 +125,7 @@ describe('LiveMonitoringService', () => {
       expect(result.items[0].employeeId).toBeNull();
       expect(result.items[0].name).toBeNull();
       expect(result.items[0].status).toBe('Unknown');
+      expect(result.items[0].isConfirm).toBe('PENDING');
     });
   });
 

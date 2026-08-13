@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { EmployeeRepository } from '../repositories/employee.repository';
 import { AttendanceService } from '../services/attendance.service';
+import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { mobileLoginSchema, deviceTokenSchema, changePasswordSchema } from '../validators/mobile.validator';
 import { env } from '../config/env';
 import { HTTP_STATUS } from '../constants/http.constants';
@@ -22,6 +23,7 @@ export class MobileController {
     private readonly employeeRepository: EmployeeRepository,
     private readonly attendanceService: AttendanceService,
     private readonly scheduleService: ScheduleService,
+    private readonly liveMonitoringRepository: LiveMonitoringRepository,
   ) { }
 
   login = async (
@@ -286,6 +288,58 @@ export class MobileController {
       res.status(HTTP_STATUS.OK).json({
         success: true,
         message: 'Password berhasil diubah',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  confirmRecognition = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user || req.user.role !== 'EMPLOYEE') {
+        throw new UnauthorizedError('Akses ditolak');
+      }
+
+      const recognitionId = req.params['id'] as string;
+      const recognition = await this.liveMonitoringRepository.findRecognitionById(recognitionId);
+
+      if (!recognition) {
+        throw new NotFoundError('Data deteksi wajah tidak ditemukan');
+      }
+
+      if (recognition.employeeId !== req.user.id) {
+        throw new UnauthorizedError('Anda tidak berhak mengonfirmasi data ini');
+      }
+
+      if ((recognition as any).isConfirm === 'CONFIRMED') {
+        throw new ValidationError('Data ini sudah dikonfirmasi sebelumnya');
+      }
+
+      // Update status menjadi CONFIRMED
+      await this.liveMonitoringRepository.updateRecognitionConfirm(recognitionId, 'CONFIRMED');
+
+      // Pindahkan ke tabel Attendances (via AttendanceService)
+      const isLate = await this.attendanceService.processAttendance({
+        externalEventId: recognition.id, // Gunakan ID recognition sebagai externalEventId
+        employeeId: recognition.employeeId,
+        cameraId: recognition.cameraId,
+        eventType: 'CHECK_IN', // Default ke CHECK_IN (bisa diexpand dari request body jika diperlukan)
+        similarity: recognition.confidence,
+        timestamp: recognition.createdAt.toISOString(),
+        photoUrl: recognition.thumbnail ?? undefined,
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Konfirmasi berhasil, data telah masuk ke daftar absensi',
+        data: {
+          isLate: isLate ?? false,
+          timestamp: new Date().toISOString(),
+        },
       });
     } catch (error) {
       next(error);

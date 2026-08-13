@@ -106,6 +106,7 @@ model RecognitionEvent {
   cameraId   String             // CAM-xx (mengikuti pola Attendance.cameraId)
   confidence Float              // 0-100
   status     String   @default("Verified") // Verified | Unknown
+  isConfirm  String   @default("PENDING") // PENDING | CONFIRMED
   thumbnail  String?
   createdAt  DateTime @default(now())
 

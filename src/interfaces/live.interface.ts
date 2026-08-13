@@ -27,6 +27,7 @@ export interface LiveRecognitionDTO {
   timestamp: string; // ISO 8601
   confidence: number; // 0-100
   status: RecognitionStatus;
+  isConfirm: string;
   thumbnail: string | null;
   notificationId: string | null; // untuk sinkronisasi read/dedup di frontend
 }

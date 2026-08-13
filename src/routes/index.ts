@@ -129,7 +129,7 @@ export const createRouter = (): Router => {
   const authController = new AuthController(authService);
   const dashboardController = new DashboardController(dashboardService);
   const cameraController = new CameraController();
-  const mobileController = new MobileController(employeeRepository, attendanceService, scheduleService);
+  const mobileController = new MobileController(employeeRepository, attendanceService, scheduleService, liveMonitoringRepository);
   const scheduleController = new ScheduleController(scheduleService);
   const cctvController = new CctvController(cctvService);
   const reportController = new ReportController(reportService);
