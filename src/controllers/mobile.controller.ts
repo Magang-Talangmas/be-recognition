@@ -327,7 +327,7 @@ export class MobileController {
         externalEventId: recognition.id, // Gunakan ID recognition sebagai externalEventId
         employeeId: recognition.employeeId,
         cameraId: recognition.cameraId,
-        eventType: 'CHECK_IN', // Default ke CHECK_IN (bisa diexpand dari request body jika diperlukan)
+        eventType: recognition.eventType || 'CHECK_IN', // Dynamic CHECK_IN/CHECK_OUT
         similarity: recognition.confidence,
         timestamp: recognition.createdAt.toISOString(),
         photoUrl: recognition.thumbnail ?? undefined,
