@@ -55,7 +55,7 @@ const baseAttendanceData: ProcessAttendanceInput = {
   cameraId: 'CAM01',
   eventType: 'CHECK_IN',
   similarity: 0.85,
-  timestamp: '2026-08-04T08:00:00.000Z',
+  timestamp: '2026-08-04T01:00:00.000Z',
 };
 
 describe('AttendanceService', () => {
@@ -132,6 +132,42 @@ describe('AttendanceService', () => {
 
         expect(mockAttendanceRepository.findByExternalEventId).not.toHaveBeenCalled();
         expect(mockAttendanceRepository.create).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('Default schedule fallback (isLate)', () => {
+      it('harus menghitung isLate=true jika tanpa jadwal dan check-in setelah 08:00 WIB', async () => {
+        mockRedis.get.mockResolvedValue(null);
+        (mockEmployeeRepository.findByEmployeeId as jest.Mock).mockResolvedValue(mockEmployee);
+        (mockAttendanceRepository.create as jest.Mock).mockResolvedValue({});
+        mockRedis.set.mockResolvedValue('OK');
+
+        // 09:30 WIB = 02:30Z
+        await service.processAttendance({
+          ...baseAttendanceData,
+          timestamp: '2026-08-04T02:30:00.000Z',
+        });
+
+        expect(mockAttendanceRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({ isLate: true }),
+        );
+      });
+
+      it('harus menghitung isLate=false jika tanpa jadwal dan check-in sebelum atau sama dengan 08:00 WIB', async () => {
+        mockRedis.get.mockResolvedValue(null);
+        (mockEmployeeRepository.findByEmployeeId as jest.Mock).mockResolvedValue(mockEmployee);
+        (mockAttendanceRepository.create as jest.Mock).mockResolvedValue({});
+        mockRedis.set.mockResolvedValue('OK');
+
+        // 07:30 WIB = 00:30Z
+        await service.processAttendance({
+          ...baseAttendanceData,
+          timestamp: '2026-08-04T00:30:00.000Z',
+        });
+
+        expect(mockAttendanceRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({ isLate: false }),
+        );
       });
     });
 

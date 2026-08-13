@@ -12,6 +12,10 @@ jest.mock('../lib/live/sse-hub', () => ({
 
 import { liveSseHub } from '../lib/live/sse-hub';
 
+export const mockAttendanceService = {
+  processAttendance: jest.fn(),
+} as any;
+
 const mockLiveRepository = {
   findFeeds: jest.fn(),
   findRecognitions: jest.fn(),
@@ -64,7 +68,7 @@ describe('LiveMonitoringService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (mockLiveRepository.findEmployeeFcmToken as jest.Mock).mockResolvedValue(null);
-    service = new LiveMonitoringService(mockLiveRepository);
+    service = new LiveMonitoringService(mockLiveRepository, mockAttendanceService);
   });
 
   describe('getFeeds', () => {
@@ -289,6 +293,73 @@ describe('LiveMonitoringService', () => {
 
       expect(result).not.toBeNull();
       expect(mockLiveRepository.createRecognition).toHaveBeenCalled();
+    });
+
+    it('harus mencatat absensi CHECK_IN otomatis saat karyawan dikenali', async () => {
+      (mockLiveRepository.findCameraByCameraId as jest.Mock).mockResolvedValue(mockCamera);
+      (mockLiveRepository.findEmployeeNameByEmployeeId as jest.Mock).mockResolvedValue('Andi Pratama');
+      (mockLiveRepository.createRecognition as jest.Mock).mockResolvedValue({
+        ...mockRecognition,
+        status: 'Unknown',
+      });
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
+      (mockAttendanceService.processAttendance as jest.Mock).mockResolvedValue(true);
+
+      await service.recordRecognition({
+        employeeId: 'EMP-001',
+        cameraId: 'CAM-01',
+        confidence: 96.4,
+        timestamp: '2026-08-06T08:02:11.000Z',
+      });
+
+      expect(mockAttendanceService.processAttendance).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employeeId: 'EMP-001',
+          cameraId: 'CAM-01',
+          eventType: 'CHECK_IN',
+          similarity: 0.964,
+          timestamp: '2026-08-06T08:02:11.000Z',
+        }),
+      );
+    });
+
+    it('harus tidak mencatat absensi otomatis saat wajah tidak dikenal (employeeId null)', async () => {
+      (mockLiveRepository.findCameraByCameraId as jest.Mock).mockResolvedValue(mockCamera);
+      (mockLiveRepository.createRecognition as jest.Mock).mockResolvedValue({
+        ...mockRecognition,
+        employeeId: null,
+        status: 'Unknown',
+      });
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
+
+      await service.recordRecognition({
+        cameraId: 'CAM-01',
+        confidence: 41.3,
+      });
+
+      expect(mockAttendanceService.processAttendance).not.toHaveBeenCalled();
+    });
+
+    it('harus tetap lanjut jika pencatatan absensi otomatis gagal', async () => {
+      (mockLiveRepository.findCameraByCameraId as jest.Mock).mockResolvedValue(mockCamera);
+      (mockLiveRepository.findEmployeeNameByEmployeeId as jest.Mock).mockResolvedValue('Andi Pratama');
+      (mockLiveRepository.createRecognition as jest.Mock).mockResolvedValue({
+        ...mockRecognition,
+        status: 'Unknown',
+      });
+      (mockLiveRepository.createNotification as jest.Mock).mockResolvedValue(mockNotification);
+      (mockAttendanceService.processAttendance as jest.Mock).mockRejectedValue(
+        new Error('db down'),
+      );
+
+      const result = await service.recordRecognition({
+        employeeId: 'EMP-001',
+        cameraId: 'CAM-01',
+        confidence: 90,
+      });
+
+      expect(result).not.toBeNull();
+      expect(mockAttendanceService.processAttendance).toHaveBeenCalled();
     });
   });
 

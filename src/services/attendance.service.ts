@@ -30,6 +30,9 @@ import { NotFoundError } from '../errors/NotFoundError';
 import { ValidationError } from '../errors/ValidationError';
 import { CheckinEventPayload } from '../interfaces/live.interface';
 
+const DEFAULT_CHECK_IN_TIME = '08:30';
+const DEFAULT_TOLERANCE_MINUTES = 0;
+
 export interface ProcessAttendanceInput {
   externalEventId?: string;  // event_id dari AI (UUID, opsional)
   employeeId: string;
@@ -161,7 +164,22 @@ export class AttendanceService {
 
         isLate = targetDayjs.isAfter(limitDayjs);
       } else {
-        isLate = false;
+        // Fallback: tanpa jadwal, tetap hitung keterlambatan vs default 08:00.
+        const [defaultHourStr, defaultMinStr] = DEFAULT_CHECK_IN_TIME.split(':');
+        const defaultLimitDayjs = targetDayjs
+          .hour(parseInt(defaultHourStr, 10))
+          .minute(parseInt(defaultMinStr, 10))
+          .add(DEFAULT_TOLERANCE_MINUTES, 'minute')
+          .second(0)
+          .millisecond(0);
+
+        isLate = targetDayjs.isAfter(defaultLimitDayjs);
+
+        logger.warn('Jadwal tidak ditemukan, isLate dihitung vs default', {
+          employeeId: data.employeeId,
+          dayName,
+          defaultCheckIn: DEFAULT_CHECK_IN_TIME,
+        });
       }
     }
 
