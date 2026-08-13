@@ -89,6 +89,48 @@ describe('AttendanceService', () => {
         expect(mockAttendanceRepository.create).not.toHaveBeenCalled();
         expect(mockRedis.set).not.toHaveBeenCalled();
       });
+
+      it('harus UPDATE attendance PENDING lama menjadi CONFIRMED jika konfirmasi CCTV susulan (CONFIRMED)', async () => {
+        mockRedis.get.mockResolvedValue(null);
+        const existingTodayRecord = {
+          id: 'att-today-pending',
+          employeeId: 'EMP001',
+          eventType: 'CHECK_IN',
+          confirmationStatus: 'PENDING',
+        };
+        (mockAttendanceRepository.findTodayAttendance as jest.Mock).mockResolvedValue(existingTodayRecord);
+
+        await service.processAttendance({
+          ...baseAttendanceData,
+          confirmationStatus: 'CONFIRMED',
+        });
+
+        expect(mockAttendanceRepository.updateConfirmationStatus).toHaveBeenCalledWith(
+          'att-today-pending',
+          'CONFIRMED',
+        );
+        expect(mockAttendanceRepository.create).not.toHaveBeenCalled();
+        expect(mockRedis.set).not.toHaveBeenCalled();
+      });
+
+      it('harus TIDAK mengubah attendance jika konfirmasi CCTV susulan bukan CONFIRMED', async () => {
+        mockRedis.get.mockResolvedValue(null);
+        const existingTodayRecord = {
+          id: 'att-today-pending',
+          employeeId: 'EMP001',
+          eventType: 'CHECK_IN',
+          confirmationStatus: 'PENDING',
+        };
+        (mockAttendanceRepository.findTodayAttendance as jest.Mock).mockResolvedValue(existingTodayRecord);
+
+        await service.processAttendance({
+          ...baseAttendanceData,
+          confirmationStatus: 'REJECTED',
+        });
+
+        expect(mockAttendanceRepository.updateConfirmationStatus).not.toHaveBeenCalled();
+        expect(mockAttendanceRepository.create).not.toHaveBeenCalled();
+      });
     });
 
     describe('Idempotency Check (event_id)', () => {

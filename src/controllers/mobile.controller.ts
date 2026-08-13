@@ -164,6 +164,7 @@ export class MobileController {
         similarity: undefined,
         timestamp: new Date().toISOString(),
         photoUrl,
+        confirmationStatus: 'CONFIRMED', // Absen manual (selfie) langsung terkonfirmasi
       });
 
       res.status(HTTP_STATUS.OK).json({

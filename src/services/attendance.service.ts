@@ -117,6 +117,23 @@ export class AttendanceService {
         date: data.timestamp.split('T')[0],
         existingAttendanceId: existingToday.id,
       });
+
+      // Konfirmasi CCTV susulan (CONFIRMED) menimpa absen lama yang masih PENDING
+      if (
+        data.confirmationStatus === 'CONFIRMED' &&
+        existingToday.confirmationStatus === 'PENDING'
+      ) {
+        await this.attendanceRepository.updateConfirmationStatus(
+          existingToday.id,
+          'CONFIRMED',
+        );
+        logger.info('Attendance PENDING lama di-update menjadi CONFIRMED', {
+          attendanceId: existingToday.id,
+          employeeId: data.employeeId,
+          eventType: data.eventType,
+        });
+      }
+
       return;
     }
 
