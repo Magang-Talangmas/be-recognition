@@ -2,6 +2,8 @@ import { env } from '../config/env';
 import { logger } from '../config/logger';
 import { LiveMonitoringService } from './live.service';
 import { RecordRecognitionInput } from '../validators/live.validator';
+import { uploadRecognitionSnapshot } from '../lib/storage';
+
 
 interface DetectDetail {
   name: string;

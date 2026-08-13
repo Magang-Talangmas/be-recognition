@@ -51,6 +51,7 @@ model Attendance {
   photoUrl           String? // URL foto bukti check-in (mobile app)
   snapshotUrl        String? // URL foto otomatis dari CCTV
   createdAt          DateTime           @default(now())
+
   updatedAt          DateTime           @updatedAt
   employee           Employee?          @relation(fields: [employeeId], references: [employeeId])
 
@@ -117,6 +118,7 @@ model RecognitionEvent {
   @@map("recognition_events")
 }
 
+
 enum AttendanceStatus {
   CHECKED_IN
   ON_BREAK
@@ -145,21 +147,26 @@ model WorkSchedule {
 }
 
 model Notification {
-  id           String      @id @default(cuid())
-  attendanceId String?
-  employeeId   String? // denormalized "EMP-xxx" untuk notifikasi reminder tanpa attendance
-  type         String      @default("INFO")
-  title        String
-  description  String
-  isRead       Boolean     @default(false)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  id               String            @id @default(cuid())
+  attendanceId     String?
+  employeeId       String?           // denormalized "EMP-xxx" untuk notifikasi reminder tanpa attendance
+  recognitionId    String?           // FK ke RecognitionEvent (notifikasi konfirmasi CCTV)
+  type             String            @default("INFO")
+  title            String
+  description      String
+  isRead           Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  attendance       Attendance?       @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  recognitionEvent RecognitionEvent? @relation(fields: [recognitionId], references: [id], onDelete: SetNull)
 
   @@index([attendanceId])
   @@index([employeeId])
+  @@index([recognitionId])
   @@map("notifications")
 }
+
+
 
 model Settings {
   id                  String   @id @default("system")

@@ -24,6 +24,7 @@ const mockLiveRepository = {
   findCameraByCameraId: jest.fn(),
   findEmployeeNameByEmployeeId: jest.fn(),
   findTodayRecognitionByEmployee: jest.fn(),
+  findEmployeeFcmToken: jest.fn(),
 } as unknown as jest.Mocked<LiveMonitoringRepository>;
 
 const mockCamera = {
@@ -62,6 +63,7 @@ describe('LiveMonitoringService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (mockLiveRepository.findEmployeeFcmToken as jest.Mock).mockResolvedValue(null);
     service = new LiveMonitoringService(mockLiveRepository);
   });
 

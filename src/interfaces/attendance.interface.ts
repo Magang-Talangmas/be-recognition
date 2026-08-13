@@ -86,6 +86,7 @@ export interface DailyAttendanceItem {
   position: string | null;
   employeeStatus: 'Active' | 'Inactive';
   present: boolean;
+  isLate: boolean | null;
   attendanceCount: number;
   confirmationStatus: ConfirmationStatus | null;
   checkInAt: string | null;
@@ -100,5 +101,7 @@ export interface DailyAttendanceResult {
   total: number;
   activeCount: number;
   presentCount: number;
+  permissionCount: number;
+  lateCount: number;
   absentCount: number;
 }

@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import {
   ReportAttendanceRow,
   ReportEmployeeRow,
+  ReportPermissionRow,
 } from '../interfaces/report.interface';
 
 export class ReportRepository {
@@ -35,6 +36,23 @@ export class ReportRepository {
         status: true,
       },
       orderBy: [{ status: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  /** Izin APPROVED dalam rentang tanggal (untuk kolom "izin" pada report). */
+  async findPermissionsRange(
+    start: Date,
+    end: Date,
+  ): Promise<ReportPermissionRow[]> {
+    return this.prisma.attendancePermission.findMany({
+      where: {
+        date: { gte: start, lt: end },
+        status: 'APPROVED',
+      },
+      select: {
+        employeeId: true,
+        date: true,
+      },
     });
   }
 }

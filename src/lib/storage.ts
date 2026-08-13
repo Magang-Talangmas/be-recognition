@@ -1,19 +1,10 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { env } from '../config/env';
+import { getSupabase } from './supabase/client';
 
 const PHOTOS_FOLDER = 'employee_faces';
 const PERMISSIONS_FOLDER = 'permissions';
 const CHECKINS_FOLDER = 'checkins';
-
-let supabase: SupabaseClient | null = null;
-
-function getSupabase(): SupabaseClient {
-  if (!supabase) {
-    supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-  }
-  return supabase;
-}
 
 const MIMETYPE_EXTENSIONS: Record<string, string> = {
   'image/jpeg': 'jpg',

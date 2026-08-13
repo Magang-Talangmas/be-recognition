@@ -327,6 +327,8 @@ export class AttendanceService {
       total: items.length,
       activeCount: active.length,
       presentCount: active.filter((i) => i.present).length,
+      permissionCount: active.filter((i) => i.permission?.status === 'APPROVED').length,
+      lateCount: active.filter((i) => i.isLate === true && i.present).length,
       absentCount: active.filter((i) => !i.present).length,
     };
   }
