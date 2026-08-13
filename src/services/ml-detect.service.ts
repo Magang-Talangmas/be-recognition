@@ -3,6 +3,12 @@ import { logger } from '../config/logger';
 import { LiveMonitoringService } from './live.service';
 import { RecordRecognitionInput } from '../validators/live.validator';
 import { uploadRecognitionSnapshot } from '../lib/storage';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 
 interface DetectDetail {
@@ -53,6 +59,24 @@ export class MlDetectService {
     this.isPolling = true;
 
     try {
+      // Pembatasan Waktu (Time Range Restriction)
+      // Clock in: 08.30 - 12.00
+      // Clock out: 17.00+
+      const nowJkt = dayjs().tz('Asia/Jakarta');
+      const timeNum = nowJkt.hour() + nowJkt.minute() / 60;
+      
+      const isClockInWindow = timeNum >= 8.5 && timeNum <= 12.0;
+      const isClockOutWindow = timeNum >= 17.0;
+
+      let currentEventType: 'CHECK_IN' | 'CHECK_OUT';
+      if (isClockInWindow) {
+        currentEventType = 'CHECK_IN';
+      } else if (isClockOutWindow) {
+        currentEventType = 'CHECK_OUT';
+      } else {
+        return;
+      }
+
       let res: Response;
       try {
         res = await fetch(env.ML_DETECT_URL, { signal: AbortSignal.timeout(5000) });
@@ -91,6 +115,18 @@ export class MlDetectService {
       let snapshotAttempted = false;
 
       for (const detail of data.details) {
+        // [Pembatasan Tinggi Badan / Y-Axis Threshold]
+        // Jika CHECK_OUT, abaikan deteksi jika posisi wajah terlalu rendah (sedang duduk).
+        // Y=0 ada di paling atas. Semakin besar Y, semakin rendah posisi kepala (ke lantai).
+        if (currentEventType === 'CHECK_OUT' && detail.bbox && detail.bbox.length >= 2) {
+          const y1 = detail.bbox[1]; // Posisi atas (top) bounding box
+          const STAND_Y_THRESHOLD = 300;
+          if (y1 > STAND_Y_THRESHOLD) {
+            // Wajah di bawah threshold (kemungkinan sedang duduk), kita lewati
+            continue;
+          }
+        }
+
         const identity = detail.name || 'Unknown';
         const last = this.lastRecorded.get(identity);
         if (last !== undefined && now - last < dedupMs) {
@@ -130,7 +166,8 @@ export class MlDetectService {
           confidence: Math.max(0, Math.min(100, detail.similarity)),
           status: 'Unknown',
           thumbnail: sharedThumbnail,
-          timestamp: new Date().toISOString(),
+          eventType: currentEventType,
+          timestamp: nowJkt.toISOString(),
         };
 
         this.lastRecorded.set(identity, now);

@@ -122,6 +122,7 @@ export class LiveMonitoringRepository {
   async findTodayRecognitionByEmployee(
     employeeId: string | null,
     date: Date,
+    eventType?: string,
   ): Promise<RecognitionEvent | null> {
     const startOfDay = dayjs(date).tz('Asia/Jakarta').startOf('day').toDate();
     const endOfDay   = dayjs(date).tz('Asia/Jakarta').endOf('day').toDate();
@@ -129,6 +130,7 @@ export class LiveMonitoringRepository {
     return this.prisma.recognitionEvent.findFirst({
       where: {
         employeeId,
+        eventType,
         status: { in: ['Unknown', 'Verified'] },
         createdAt: { gte: startOfDay, lte: endOfDay },
       },
