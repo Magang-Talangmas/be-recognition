@@ -3,6 +3,12 @@ import { logger } from '../config/logger';
 import { LiveMonitoringService } from './live.service';
 import { RecordRecognitionInput } from '../validators/live.validator';
 import { uploadRecognitionSnapshot } from '../lib/storage';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 
 interface DetectDetail {
@@ -53,6 +59,19 @@ export class MlDetectService {
     this.isPolling = true;
 
     try {
+      // Pembatasan Waktu (Time Range Restriction)
+      // Clock in: 08.30 - 12.00
+      // Clock out: 17.00+
+      const nowJkt = dayjs().tz('Asia/Jakarta');
+      const timeNum = nowJkt.hour() + nowJkt.minute() / 60;
+      
+      const isClockInWindow = timeNum >= 8.5 && timeNum <= 12.0;
+      const isClockOutWindow = timeNum >= 17.0;
+
+      if (!isClockInWindow && !isClockOutWindow) {
+        return;
+      }
+
       let res: Response;
       try {
         res = await fetch(env.ML_DETECT_URL, { signal: AbortSignal.timeout(5000) });
