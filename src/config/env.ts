@@ -15,6 +15,12 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1, 'REDIS_URL wajib diisi'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET minimal 32 karakter'),
   ML_API_KEY: z.string().min(1, 'ML_API_KEY wajib diisi'),
+  AI_STREAM_BASE_URL: z
+    .string()
+    .default('http://192.168.77.171:8888'),
+  AI_STREAM_WHEP_URL: z
+    .string()
+    .default('http://192.168.77.171:8889/stream/whep'),
   SUPABASE_URL: z.string().min(1, 'SUPABASE_URL wajib diisi'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY wajib diisi'),
   SUPABASE_STORAGE_BUCKET: z.string().min(1, 'SUPABASE_STORAGE_BUCKET wajib diisi'),

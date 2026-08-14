@@ -6,6 +6,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 import { Camera, Notification, RecognitionEvent } from '@prisma/client';
+import { env } from '../config/env';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { AttendanceService } from './attendance.service';
 import { liveSseHub } from '../lib/live/sse-hub';
@@ -41,7 +42,10 @@ function toFeedDTO(camera: Camera): LiveFeedDTO {
     online: camera.isOnline,
     rtspUrl: camera.rtspUrl,
     snapshotUrl: canStream ? '/v1/cameras/snapshot' : null,
-    streamUrl: canStream ? '/v1/cameras/stream' : null,
+    streamUrl: canStream
+      ? `${env.AI_STREAM_BASE_URL}/stream/?autoplay=true&muted=true&controls=false&playsinline=true`
+      : null,
+    whepUrl: canStream ? env.AI_STREAM_WHEP_URL : null,
   };
 }
 

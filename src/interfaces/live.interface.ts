@@ -15,7 +15,8 @@ export interface LiveFeedDTO {
   online: boolean;
   rtspUrl: string | null;
   snapshotUrl: string | null; // proxy snapshot (renderable di <img>)
-  streamUrl: string | null; // proxy MJPEG stream (renderable di <img>/<video>)
+  streamUrl: string | null; // proxy MJPEG stream / fallback WebRTC player (renderable di <img>/<video>)
+  whepUrl: string | null; // WebRTC WHEP endpoint (POST SDP offer untuk live stream)
 }
 
 export interface LiveRecognitionDTO {
