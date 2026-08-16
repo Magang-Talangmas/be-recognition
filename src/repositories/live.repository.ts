@@ -152,14 +152,14 @@ export class LiveMonitoringRepository {
   async updateRecognitionConfirm(id: string, isConfirm: string): Promise<RecognitionEvent> {
     return this.prisma.recognitionEvent.update({
       where: { id },
-      data: { isConfirm: isConfirm as any }, // cast as any because we just added it
+      data: { isConfirm: isConfirm },
     });
   }
 
   async updateRecognitionStatusAndConfirm(id: string, status: string, isConfirm: string): Promise<RecognitionEvent> {
     return this.prisma.recognitionEvent.update({
       where: { id },
-      data: { status, isConfirm: isConfirm as any },
+      data: { status, isConfirm: isConfirm },
     });
   }
 
