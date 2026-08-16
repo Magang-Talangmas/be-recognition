@@ -137,6 +137,30 @@ export async function uploadCheckinPhoto(
   return data.publicUrl;
 }
 
+/**
+ * Menghapus foto check-in dari Supabase Storage berdasarkan public URL.
+ * Digunakan untuk cleanup foto yang sudah terlanjur di-upload tapi gagal verifikasi ML.
+ */
+export async function deleteCheckinPhotoByUrl(url: string): Promise<void> {
+  try {
+    const parts = new URL(url).pathname.split('/').filter(Boolean);
+    const publicIdx = parts.indexOf('public');
+    if (publicIdx === -1) return;
+    const filePath = parts.slice(publicIdx + 2).join('/');
+    if (!filePath.startsWith(`${CHECKINS_FOLDER}/`)) return;
+
+    const { error } = await getSupabase().storage
+      .from(env.SUPABASE_STORAGE_BUCKET)
+      .remove([filePath]);
+
+    if (error) {
+      console.error(`Gagal hapus foto check-in orphan: ${error.message}`);
+    }
+  } catch {
+    // Abaikan error cleanup agar tidak mengganggu flow error utama
+  }
+}
+
 const SNAPSHOT_FOLDER = 'weekly_recog';
 
 /**

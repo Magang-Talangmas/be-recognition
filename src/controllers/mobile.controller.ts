@@ -12,7 +12,7 @@ import { NotFoundError } from '../errors/NotFoundError';
 import { ValidationError } from '../errors/ValidationError';
 import { logger } from '../config/logger';
 import { JwtPayload } from '../interfaces/auth.interface';
-import { uploadCheckinPhoto } from '../lib/storage';
+import { uploadCheckinPhoto, deleteCheckinPhotoByUrl } from '../lib/storage';
 
 const JWT_EXPIRY = '24h';
 
@@ -156,68 +156,77 @@ export class MobileController {
       }
       const photoUrl = await uploadCheckinPhoto(files[0], req.user.id);
 
-      const employee = await this.employeeRepository.findByEmployeeId(req.user.id);
-      if (!employee || !employee.photos || employee.photos.length === 0) {
-        throw new ValidationError('Anda belum mendaftarkan wajah (foto master kosong). Silakan daftarkan wajah terlebih dahulu.');
-      }
-      
-      const masterPhotoUrl = employee.photos[0];
-
-      let similarityScore = 0;
+      // Inner try-catch: jika verifikasi ML atau proses absensi gagal,
+      // hapus foto yang sudah terlanjur di-upload ke Supabase (cleanup orphan)
       try {
-        const mlResponse = await fetch(env.ML_VERIFY_FACE_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            employeeId: req.user.id,
-            photoUrl,
-            masterPhotoUrl
-          })
+        const employee = await this.employeeRepository.findByEmployeeId(req.user.id);
+        if (!employee || !employee.photos || (employee.photos as string[]).length === 0) {
+          throw new ValidationError('Anda belum mendaftarkan wajah (foto master kosong). Silakan daftarkan wajah terlebih dahulu.');
+        }
+        
+        const masterPhotoUrl = (employee.photos as string[])[0];
+
+        let similarityScore = 0;
+        try {
+          const mlResponse = await fetch(env.ML_VERIFY_FACE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employeeId: req.user.id,
+              photoUrl,
+              masterPhotoUrl
+            })
+          });
+
+          if (!mlResponse.ok) {
+            logger.error(`Gagal verifikasi wajah ML Server HTTP Error: ${mlResponse.status}`);
+            throw new ValidationError('Terjadi kesalahan saat memverifikasi wajah (Server ML gangguan).');
+          }
+
+          const mlResult = await mlResponse.json() as { success: boolean; similarity: number; error?: string };
+          if (!mlResult.success) {
+            logger.warn(`Verifikasi wajah gagal: ${mlResult.error}`);
+            throw new ValidationError(`Verifikasi wajah gagal: ${mlResult.error || 'Wajah tidak terdeteksi'}`);
+          }
+
+          similarityScore = mlResult.similarity;
+          if (similarityScore < env.ML_VERIFY_FACE_THRESHOLD) {
+            throw new ValidationError(`Wajah tidak cocok dengan data master (Similarity: ${similarityScore.toFixed(2)}%). Minimal: ${env.ML_VERIFY_FACE_THRESHOLD}%`);
+          }
+        } catch (error: any) {
+          if (error instanceof ValidationError) {
+            throw error;
+          }
+          logger.error(`Error fetch ke ML_VERIFY_FACE_URL: ${error.message}`);
+          throw new ValidationError('Tidak dapat menghubungi server verifikasi wajah.');
+        }
+
+        const isLate = await this.attendanceService.processAttendance({
+          externalEventId: `mobile-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          employeeId: req.user.id,
+          cameraId: 'mobile-app',
+          eventType: eventType,
+          similarity: similarityScore,
+          timestamp: new Date().toISOString(),
+          photoUrl,
+          confirmationStatus: 'CONFIRMED', // Absen manual (selfie) langsung terkonfirmasi
         });
 
-        if (!mlResponse.ok) {
-          logger.error(`Gagal verifikasi wajah ML Server HTTP Error: ${mlResponse.status}`);
-          throw new ValidationError('Terjadi kesalahan saat memverifikasi wajah (Server ML gangguan).');
-        }
-
-        const mlResult = await mlResponse.json();
-        if (!mlResult.success) {
-          logger.warn(`Verifikasi wajah gagal: ${mlResult.error}`);
-          throw new ValidationError(`Verifikasi wajah gagal: ${mlResult.error || 'Wajah tidak terdeteksi'}`);
-        }
-
-        similarityScore = mlResult.similarity;
-        if (similarityScore < env.ML_VERIFY_FACE_THRESHOLD) {
-          throw new ValidationError(`Wajah tidak cocok dengan data master (Similarity: ${similarityScore.toFixed(2)}%). Minimal: ${env.ML_VERIFY_FACE_THRESHOLD}%`);
-        }
-      } catch (error: any) {
-        if (error instanceof ValidationError) {
-          throw error;
-        }
-        logger.error(`Error fetch ke ML_VERIFY_FACE_URL: ${error.message}`);
-        throw new ValidationError('Tidak dapat menghubungi server verifikasi wajah.');
+        res.status(HTTP_STATUS.OK).json({
+          success: true,
+          message: 'Absensi berhasil dicatat',
+          data: {
+            eventType,
+            isLate: eventType === 'CHECK_IN' ? (isLate ?? false) : undefined,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        // Cleanup: hapus foto yang sudah terlanjur di-upload ke Supabase
+        logger.info('Menghapus foto check-in orphan karena verifikasi gagal', { photoUrl });
+        await deleteCheckinPhotoByUrl(photoUrl);
+        throw error; // re-throw ke outer catch → next(error)
       }
-
-      const isLate = await this.attendanceService.processAttendance({
-        externalEventId: `mobile-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        employeeId: req.user.id,
-        cameraId: 'mobile-app',
-        eventType: eventType,
-        similarity: similarityScore,
-        timestamp: new Date().toISOString(),
-        photoUrl,
-        confirmationStatus: 'CONFIRMED', // Absen manual (selfie) langsung terkonfirmasi
-      });
-
-      res.status(HTTP_STATUS.OK).json({
-        success: true,
-        message: 'Absensi berhasil dicatat',
-        data: {
-          eventType,
-          isLate: eventType === 'CHECK_IN' ? (isLate ?? false) : undefined,
-          timestamp: new Date().toISOString(),
-        },
-      });
     } catch (error) {
       next(error);
     }
