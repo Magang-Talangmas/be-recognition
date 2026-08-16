@@ -312,6 +312,21 @@ export class AttendanceService {
     return this.attendanceRepository.updateConfirmationStatusByExternalEventId(externalEventId, status);
   }
 
+  // Update record absensi ketika terjadi Upsert CHECK_OUT dari AI (Last-Seen)
+  async updateLastSeenCheckOut(
+    externalEventId: string,
+    timestamp: Date,
+    similarity: number,
+    snapshotUrl?: string
+  ): Promise<void> {
+    await this.attendanceRepository.updateByExternalEventId(externalEventId, {
+      timestamp,
+      similarity,
+      ...(snapshotUrl !== undefined ? { snapshotUrl } : {}),
+    });
+    logger.info('Attendance Last-Seen Check-Out diperbarui', { externalEventId, timestamp });
+  }
+
   async updateConfirmationStatus(
     id: string,
     status: ConfirmationStatus,
