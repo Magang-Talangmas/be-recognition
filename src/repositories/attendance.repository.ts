@@ -47,6 +47,16 @@ export class AttendanceRepository {
     return result.count;
   }
 
+  async updateByExternalEventId(
+    externalEventId: string,
+    data: { timestamp: Date; similarity?: number; snapshotUrl?: string | null }
+  ): Promise<void> {
+    await this.prisma.attendance.updateMany({
+      where: { externalEventId },
+      data: data as any,
+    });
+  }
+
   // Ambil daftar employee yang sudah melakukan CHECK_IN pada rentang hari tertentu.
   async findCheckInsForEmployees(
     employeeIds: string[],

@@ -179,6 +179,43 @@ export class LiveMonitoringService {
     );
 
     if (existing) {
+      const isConfirm = (existing as any).isConfirm ?? 'PENDING';
+      
+      // Jika ini CHECK_OUT dan masih PENDING, kita UPSERT (Last-Seen)
+      if (input.eventType === 'CHECK_OUT' && isConfirm === 'PENDING') {
+        const updatedEvent = await this.repository.updateRecognitionForUpsert(existing.id, {
+          confidence: input.confidence,
+          thumbnail: input.thumbnail ?? existing.thumbnail,
+          createdAt: today,
+        });
+        
+        logger.info('Recognition di-update (Upsert Last-Seen Check-Out)', {
+          employeeId: input.employeeId ?? 'Unknown',
+          existingId: existing.id,
+        });
+        
+        const cameraName = await this.repository.findCameraByCameraId(input.cameraId).then(c => c?.name ?? input.cameraId);
+        const employeeName = input.employeeId ? await this.repository.findEmployeeNameByEmployeeId(input.employeeId) : null;
+        
+        // Kita tidak mengirim push notification lagi agar HP tidak spam bergetar tiap 5 menit
+        // Tapi kita bisa publish ke SSE jika admin sedang buka dashboard
+        const dto = toRecognitionDTO(updatedEvent, cameraName, employeeName, null);
+        liveSseHub.publish('unknown', dto);
+        
+        // --- Perbaikan Penting ---
+        // Update juga Attendance record-nya agar Last-Seen checkout jamnya berubah di tabel absensi harian!
+        if (this.attendanceService) {
+          await this.attendanceService.updateLastSeenCheckOut(
+            `cctv-${existing.id}`, 
+            today, 
+            Math.round(((input.confidence ?? 0) / 100) * 10000) / 10000, 
+            input.thumbnail ?? undefined
+          );
+        }
+        
+        return dto;
+      }
+      
       logger.info('Recognition diabaikan — duplikat hari ini (status Unknown/Verified)', {
         employeeId: input.employeeId ?? 'Unknown',
         existingId: existing.id,

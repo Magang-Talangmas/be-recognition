@@ -162,5 +162,12 @@ export class LiveMonitoringRepository {
       data: { status, isConfirm: isConfirm as any },
     });
   }
+
+  async updateRecognitionForUpsert(id: string, data: { confidence: number, thumbnail: string | null, createdAt: Date }): Promise<RecognitionEvent> {
+    return this.prisma.recognitionEvent.update({
+      where: { id },
+      data,
+    });
+  }
 }
 
