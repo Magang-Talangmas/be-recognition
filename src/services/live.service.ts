@@ -396,8 +396,8 @@ export class LiveMonitoringService {
           : 'Check In';
     const description =
       payload.type === 'CHECK_OUT'
-        ? `${payload.name} (${payload.employeeId}) check-out pukul ${payload.time}.`
-        : `${payload.name} (${payload.employeeId}) check-in${isLate ? ' terlambat' : ''} pukul ${payload.time}.`;
+        ? `${payload.name} check-out pukul ${payload.time}.`
+        : `${payload.name} check-in${isLate ? ' terlambat' : ''} pukul ${payload.time}.`;
 
     const notification = await this.safeCreateNotification({
       type: 'checkin',

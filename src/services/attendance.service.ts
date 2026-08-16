@@ -246,8 +246,8 @@ export class AttendanceService {
               : 'Check In';
         const description =
           data.eventType === 'CHECK_OUT'
-            ? `${employee.name} (${data.employeeId}) check-out pukul ${time}.`
-            : `${employee.name} (${data.employeeId}) check-in${lateFlag ? ' terlambat' : ''} pukul ${time}.`;
+            ? `${employee.name} check-out pukul ${time}.`
+            : `${employee.name} check-in${lateFlag ? ' terlambat' : ''} pukul ${time}.`;
 
         const payload: CheckinEventPayload = {
           employeeId: data.employeeId,
