@@ -145,6 +145,14 @@ export class AttendanceService {
       throw new NotFoundError(`Employee dengan ID ${data.employeeId} tidak ditemukan`);
     }
 
+    if (employee.status !== 'Active') {
+      logger.warn('Attendance ditolak — employee tidak aktif (Inactive)', {
+        employeeId: data.employeeId,
+        status: employee.status,
+      });
+      return undefined;
+    }
+
     let isLate: boolean | undefined = undefined;
 
     if (data.eventType === 'CHECK_IN') {
