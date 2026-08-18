@@ -19,6 +19,7 @@ import {
   deleteAuthUser,
 } from '../lib/supabase/auth';
 import { MlRegisterService } from './ml-register.service';
+import { liveSseHub } from '../lib/live/sse-hub';
 
 export interface EmployeeDTO {
   id: string;
@@ -205,6 +206,13 @@ export class EmployeeService {
       this.deleteFromMl(employee);
       await deactivateAuthUser(employee.email);
     }
+
+    // Broadcast perubahan status ke semua client SSE yang terhubung
+    liveSseHub.publish('employee_status', {
+      employeeId: employee.employeeId,
+      status: employee.status,
+    });
+
     return toDTO(employee);
   }
 
