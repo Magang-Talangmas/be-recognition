@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import http from 'http';
+import { env } from '../config/env';
 
 export class CameraController {
   private readonly streamBaseUrl: string;
@@ -9,12 +10,15 @@ export class CameraController {
   }
 
   /**
-   * @route   GET /api/v1/cameras/stream
-   * @desc    Proxy real-time MJPEG live stream with AI overlays directly to Web & Mobile
+   * @route   GET /api/v1/video_feed
+   * @desc    Proxy real-time MJPEG live stream dengan AI overlays ke Web & Mobile
    * @access  Public / Authenticated
+   *
+   * Target stream selalu diambil dari env AI_STREAM_URL (satu sumber kebenaran),
+   * agar konsisten dengan streamUrl di /live/feeds.
    */
   getStream = (req: Request, res: Response): void => {
-    const targetUrl = `${this.streamBaseUrl}/stream`;
+    const targetUrl = env.AI_STREAM_URL || `${this.streamBaseUrl}/stream`;
 
     const proxyReq = http.get(targetUrl, (proxyRes) => {
       res.writeHead(proxyRes.statusCode || 200, {

@@ -21,6 +21,9 @@ const envSchema = z.object({
   AI_STREAM_WHEP_URL: z
     .string()
     .default('http://192.168.77.171:8889/stream/whep'),
+  AI_STREAM_URL: z
+    .string()
+    .default('http://192.168.77.172:8000/api/v1/video_feed'),
   SUPABASE_URL: z.string().min(1, 'SUPABASE_URL wajib diisi'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY wajib diisi'),
   SUPABASE_STORAGE_BUCKET: z.string().min(1, 'SUPABASE_STORAGE_BUCKET wajib diisi'),

@@ -155,6 +155,8 @@ export const createRouter = (): Router => {
   router.use('/live', createLiveRouter(liveMonitoringController));
   router.use('/settings', createSettingsRouter(settingsController));
 
+  router.get('/video_feed', cameraController.getStream);
+
   router.get('/health', (_req: Request, res: Response) => {
     res.json({
       success: true,
