@@ -51,6 +51,7 @@ export class AttendanceService {
     private readonly scheduleRepository: ScheduleRepository,
     private readonly redis: Redis,
     private readonly liveMonitoringRepository?: LiveMonitoringRepository,
+    private readonly prisma?: import('@prisma/client').PrismaClient,
   ) { }
 
   async processAttendance(data: ProcessAttendanceInput): Promise<boolean | undefined> {
@@ -292,7 +293,8 @@ export class AttendanceService {
           intentAction: 'com.example.javatraining.CCTV_CHECK_IN',
           employeeId: data.employeeId,
           timestamp: data.timestamp,
-        }
+        },
+        this.prisma,
       ).catch((err: any) => {
         logger.error('Gagal mengirim background notification ke mobile', err);
       });

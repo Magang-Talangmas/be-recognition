@@ -87,6 +87,7 @@ export const createRouter = (): Router => {
     scheduleRepository,
     redis,
     liveMonitoringRepository,
+    prisma,
   );
   const employeeService = new EmployeeService(
     employeeRepository,
