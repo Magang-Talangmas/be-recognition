@@ -265,6 +265,7 @@ export class LiveMonitoringService {
           eventType: event.eventType || 'CHECK_IN',
           similarity: Math.round(((input.confidence ?? 0) / 100) * 10000) / 10000,
           timestamp: event.createdAt.toISOString(),
+          photoUrl: event.thumbnail ?? undefined,
         });
         logger.info('Absensi otomatis (CCTV detection) dicatat', {
           employeeId: input.employeeId,

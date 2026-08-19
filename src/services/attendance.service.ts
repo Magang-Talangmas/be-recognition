@@ -222,7 +222,7 @@ export class AttendanceService {
       photoUrl: data.photoUrl,
     });
 
-    if (data.eventType === 'CHECK_IN') {
+    if (data.eventType === 'CHECK_IN' && !data.photoUrl) {
       // Jalankan sebagai background task (fire-and-forget) agar tidak menunda respon API
       captureAndUploadSnapshot(data.employeeId)
         .then((snapshotUrl) => {
