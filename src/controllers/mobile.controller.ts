@@ -191,7 +191,7 @@ export class MobileController {
 
           similarityScore = mlResult.similarity;
           if (similarityScore < env.ML_VERIFY_FACE_THRESHOLD) {
-            throw new ValidationError(`Wajah tidak cocok dengan data master (Similarity: ${similarityScore.toFixed(2)}%). Minimal: ${env.ML_VERIFY_FACE_THRESHOLD}%`);
+            throw new ValidationError(`Wajah tidak cocok dengan data master (Similarity: ${similarityScore.toFixed(2)}). Minimal: ${env.ML_VERIFY_FACE_THRESHOLD}`);
           }
         } catch (error: any) {
           if (error instanceof ValidationError) {
@@ -399,17 +399,7 @@ export class MobileController {
       // Update status menjadi Verified dan isConfirm menjadi CONFIRMED
       await this.liveMonitoringRepository.updateRecognitionStatusAndConfirm(recognitionId, 'Verified', 'CONFIRMED');
 
-      // Pindahkan ke tabel Attendances (via AttendanceService)
-      const isLate = await this.attendanceService.processAttendance({
-        externalEventId: recognition.id, // Gunakan ID recognition sebagai externalEventId
-        employeeId: recognition.employeeId,
-        cameraId: recognition.cameraId,
-        eventType: recognition.eventType || 'CHECK_IN', // Dynamic CHECK_IN/CHECK_OUT
-        similarity: recognition.confidence,
-        timestamp: recognition.createdAt.toISOString(),
-        photoUrl: recognition.thumbnail ?? undefined,
-        confirmationStatus: 'CONFIRMED', // Attendance hasil konfirmasi langsung berstatus CONFIRMED
-      });
+      const isLate = false; // Karena data lama sudah di-process, kita set default false untuk response.
 
       // Attendance yang sudah dibuat otomatis oleh auto check-in CCTV (PENDING) ikut jadi CONFIRMED
       await this.attendanceService.confirmAttendanceByExternalEventId(`cctv-${recognition.id}`, 'CONFIRMED');
