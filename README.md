@@ -72,7 +72,13 @@ Server akan berjalan di `http://localhost:3000`.
 
 ---
 
-## 📑 Dokumentasi API untuk Frontend & ML
+## 📑 Dokumentasi API & Swagger UI
+
+Dokumentasi interaktif OpenAPI / Swagger UI tersedia langsung di:
+- **Swagger UI**: `http://localhost:3000/docs` (atau `http://localhost:3000/api/v1/docs`, `http://localhost:3000/api-docs`)
+- **OpenAPI JSON**: `http://localhost:3000/docs.json` (atau `http://localhost:3000/swagger.json`)
+
+Dokumentasi lengkap format markdown dapat dilihat di file [`API_DOCUMENTATION.md`](./API_DOCUMENTATION.md).
 
 Semua endpoint berawalan dengan prefix `/api/v1`.
 
