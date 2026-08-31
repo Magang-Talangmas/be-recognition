@@ -1,0 +1,45 @@
+# Dependencies & build output
+node_modules
+dist
+
+# Environment files (secrets)
+.env
+.env.*
+
+# Test & coverage
+coverage
+__tests__
+
+# Logs
+*.log
+logs
+
+# Git
+.git
+.gitignore
+
+# Documentation (tidak diperlukan dalam image)
+*.md
+!README.md
+
+# Test scripts & scratch files
+test-*
+scratch.*
+query-*.ts
+verify-*.ts
+inspect-*.ts
+gen-token.ts
+test-api.sh
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Postman
+postman_collection.json
+
+# Docker (hindari recursive COPY)
+Dockerfile
+docker-compose*.yml
