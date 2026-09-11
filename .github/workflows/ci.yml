@@ -1,0 +1,68 @@
+name: CI — Backend API
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Build, Lint & Test
+    runs-on: ubuntu-latest
+
+    env:
+      PORT: 5000
+      NODE_ENV: test
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/testdb"
+      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/testdb"
+      REDIS_URL: "redis://localhost:6379"
+      JWT_SECRET: "your-super-secret-jwt-key-change-in-production"
+      ML_API_KEY: "dummy-ml-api-key"
+      AI_STREAM_BASE_URL: "http://localhost:8888"
+      AI_STREAM_WHEP_URL: "http://localhost:8889/stream/whep"
+      AI_STREAM_URL: "http://localhost:8000/api/v1/video_feed"
+      SUPABASE_URL: "https://dummy.supabase.co"
+      SUPABASE_SERVICE_ROLE_KEY: "dummy-service-role-key"
+      SUPABASE_STORAGE_BUCKET: "recognition"
+      FIREBASE_SERVICE_ACCOUNT: "{}"
+      ML_DETECT_URL: "http://localhost:8088/detect"
+      ML_DETECT_INTERVAL_MS: 5000
+      ML_DETECT_CAMERA_ID: "CAM-05"
+      ML_DETECT_SIMILARITY_THRESHOLD: 10
+      ML_DETECT_DEDUP_SECONDS: 60
+      ML_REGISTER_URL: "http://localhost:8088/api/v1/employees/sync-ml"
+      ML_REGISTER_ENABLED: "true"
+      ML_REGISTER_TIMEOUT_MS: 60000
+      ML_VERIFY_FACE_URL: "http://localhost:5001/verify-face"
+      ML_VERIFY_ENABLED: "false"
+      ML_VERIFY_THRESHOLD: 80
+      ML_VERIFY_TIMEOUT_MS: 10000
+      ML_REMOVE_URL: ""
+      SCHEDULE_REMINDER_INTERVAL_MS: 60000
+      SCHEDULE_REMINDER_EARLY_MINUTES: 10
+      SCHEDULE_REMINDER_LATE_MINUTES: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Unit Tests
+        run: npm test
+
+      - name: Build TypeScript Project
+        run: npm run build
+  
