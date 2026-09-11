@@ -19,7 +19,8 @@ export const createApp = (): Application => {
   );
   app.use(
     cors({
-      origin: process.env.NODE_ENV === 'production' ? false : '*',
+      origin: true,
+      credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
     }),
