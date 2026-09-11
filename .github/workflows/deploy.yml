@@ -16,28 +16,28 @@ jobs:
           set -e
           export PATH=$PATH:/usr/local/bin:/usr/bin:/bin
 
-          echo "🚀 [1/5] Memulai deployment di server fisik Pop!_OS..."
+          echo " [1/5] Memulai deployment di server fisik Pop!_OS..."
           cd /home/popos/projek-anakmagang/be-recognition
 
-          echo "📥 [2/5] Menarik pembaruan kode dari GitHub..."
+          echo "[2/5] Menarik pembaruan kode dari GitHub..."
           git fetch origin main
           git reset --hard origin/main
 
-          echo "📦 [3/5] Menginstal dependensi & build project..."
+          echo "[3/5] Menginstal dependensi & build project..."
           npm install
           npx prisma generate
           npx prisma migrate deploy
           npm run build
 
-          echo "🔄 [4/5] Me-reload PM2 (Zero Downtime)..."
+          echo "[4/5] Me-reload PM2 (Zero Downtime)..."
           pm2 reload be-attendance || pm2 restart be-attendance
           pm2 save
 
-          echo "🩺 [5/5] Menjalankan Health Check API..."
+          echo "[5/5] Menjalankan Health Check API..."
           sleep 3
           curl -s -f http://localhost:5000/api/v1/health | grep -q '"success":true' || {
-            echo "❌ Health check gagal! Respons server tidak sesuai."
+            echo " Health check gagal! Respons server tidak sesuai."
             exit 1
           }
 
-          echo "🎉 DEPLOYMENT SUKSES! Backend berjalan normal di port 5000."
+          echo "DEPLOYMENT SUKSES! Backend berjalan normal di port 5000."
