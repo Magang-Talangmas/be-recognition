@@ -199,3 +199,11 @@ model AttendancePermission {
   @@map("attendance_permissions")
 }
 
+model EmployeeEmbedding {
+  employeeId       String   @id @map("employee_id")
+  fusedEmbedding   Float[]  @map("fused_embedding")
+  sourcePhotoCount Int      @default(0) @map("source_photo_count")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("employee_embeddings")
+}
