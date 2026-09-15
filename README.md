@@ -160,3 +160,5 @@ npm run test:watch
 - **User**: Pengguna web admin/user (`id`, `email`, `password`, `name`, `role`)
 - **Employee**: Data karyawan (`id`, `employeeId`, `name`, `department`, `position`, `isActive`)
 - **Attendance**: Log presensi (`id`, `employeeId`, `cameraId`, `timestamp`)
+
+mas panji 
