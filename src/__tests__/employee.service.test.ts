@@ -3,6 +3,17 @@ import { EmployeeRepository } from '../repositories/employee.repository';
 import { ConflictError } from '../errors/ConflictError';
 import { NotFoundError } from '../errors/NotFoundError';
 
+jest.mock('../lib/storage', () => ({
+  deleteEmployeePhotoFiles: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('../lib/supabase/auth', () => ({
+  createAuthUser: jest.fn().mockResolvedValue(null),
+  upsertAuthUser: jest.fn().mockResolvedValue(null),
+  deactivateAuthUser: jest.fn().mockResolvedValue(undefined),
+  activateAuthUser: jest.fn().mockResolvedValue(undefined),
+  deleteAuthUser: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockEmployeeRepository = {
   create: jest.fn(),
   findById: jest.fn(),
@@ -354,7 +365,7 @@ describe('EmployeeService', () => {
   describe('sinkronisasi ke ML', () => {
     const mockMlRegister = {
       registerEmployee: jest.fn().mockResolvedValue({ ok: true, message: 'ok', photosSent: 1 }),
-      removeEmployee: jest.fn().mockResolvedValue({ ok: true, message: 'ok', photosSent: 0 }),
+      deleteEmployee: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockUpdate = (_id: string, data: any) => {
@@ -394,13 +405,17 @@ describe('EmployeeService', () => {
       expect(mockMlRegister.registerEmployee).toHaveBeenCalled();
     });
 
-    it('update tanpa perubahan foto/nama tidak boleh memanggil ML', async () => {
+    it('update employee aktif tetap menyinkronkan foto yang tersimpan ke ML', async () => {
       (mockEmployeeRepository.findById as jest.Mock).mockResolvedValue(mockEmployee);
       (mockEmployeeRepository.update as jest.Mock).mockImplementation(mockUpdate);
 
       await service.updateEmployee('uuid-1', { department: 'HR' });
 
-      expect(mockMlRegister.registerEmployee).not.toHaveBeenCalled();
+      expect(mockMlRegister.registerEmployee).toHaveBeenCalledWith({
+        employeeId: mockEmployee.employeeId,
+        name: mockEmployee.name,
+        photos: mockEmployee.photos,
+      });
     });
 
     it('menghapus semua foto harus memanggil remove ke ML (bukan register)', async () => {
@@ -414,9 +429,10 @@ describe('EmployeeService', () => {
       await service.updateEmployee('uuid-1', { photoUrls: [] });
 
       expect(mockMlRegister.registerEmployee).not.toHaveBeenCalled();
-      expect(mockMlRegister.removeEmployee).toHaveBeenCalledWith({
+      expect(mockMlRegister.deleteEmployee).toHaveBeenCalledWith({
         employeeId: 'EMP-ABC123',
         name: 'Budi Santoso',
+        oldName: 'Budi Santoso',
       });
     });
 
@@ -426,7 +442,7 @@ describe('EmployeeService', () => {
 
       await service.deleteEmployee('uuid-1');
 
-      expect(mockMlRegister.removeEmployee).toHaveBeenCalledWith({
+      expect(mockMlRegister.deleteEmployee).toHaveBeenCalledWith({
         employeeId: 'EMP-ABC123',
         name: 'Budi Santoso',
       });

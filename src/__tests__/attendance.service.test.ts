@@ -5,6 +5,13 @@ import { NotFoundError } from '../errors/NotFoundError';
 import { ValidationError } from '../errors/ValidationError';
 import { REDIS_ATTENDANCE_TTL } from '../constants/redis.constants';
 
+jest.mock('../lib/storage', () => ({
+  captureAndUploadSnapshot: jest.fn().mockResolvedValue(null),
+}));
+jest.mock('../lib/firebase', () => ({
+  sendPushNotification: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Mock logger agar tidak mencetak ke console saat test
 jest.mock('../config/logger', () => ({
   logger: {
@@ -45,7 +52,7 @@ const mockEmployee = {
   name: 'Budi Santoso',
   department: 'Engineering',
   position: 'Developer',
-  isActive: true,
+  status: 'Active',
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -178,7 +185,7 @@ describe('AttendanceService', () => {
     });
 
     describe('Default schedule fallback (isLate)', () => {
-      it('harus menghitung isLate=true jika tanpa jadwal dan check-in setelah 08:00 WIB', async () => {
+      it('harus menghitung isLate=true jika tanpa jadwal dan check-in setelah 08:30 WIB', async () => {
         mockRedis.get.mockResolvedValue(null);
         (mockEmployeeRepository.findByEmployeeId as jest.Mock).mockResolvedValue(mockEmployee);
         (mockAttendanceRepository.create as jest.Mock).mockResolvedValue({});
@@ -195,16 +202,16 @@ describe('AttendanceService', () => {
         );
       });
 
-      it('harus menghitung isLate=false jika tanpa jadwal dan check-in sebelum atau sama dengan 08:00 WIB', async () => {
+      it('harus menghitung isLate=false jika tanpa jadwal dan check-in tepat 08:30 WIB', async () => {
         mockRedis.get.mockResolvedValue(null);
         (mockEmployeeRepository.findByEmployeeId as jest.Mock).mockResolvedValue(mockEmployee);
         (mockAttendanceRepository.create as jest.Mock).mockResolvedValue({});
         mockRedis.set.mockResolvedValue('OK');
 
-        // 07:30 WIB = 00:30Z
+        // 08:30 WIB = 01:30Z
         await service.processAttendance({
           ...baseAttendanceData,
-          timestamp: '2026-08-04T00:30:00.000Z',
+          timestamp: '2026-08-04T01:30:00.000Z',
         });
 
         expect(mockAttendanceRepository.create).toHaveBeenCalledWith(

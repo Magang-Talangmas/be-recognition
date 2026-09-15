@@ -89,15 +89,19 @@ describe('MlRegisterService', () => {
     expect(result.message).toContain('Gagal');
   });
 
-  it('removeEmployee harus dilewati jika ML_REMOVE_URL kosong', async () => {
+  it('removeEmployee memakai DELETE ke sync-ml jika ML_REMOVE_URL kosong', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(new Response(null, { status: 204 }));
     const result = await service.removeEmployee({
       employeeId: 'EMP-001',
       name: 'Budi',
     });
 
-    expect(global.fetch).not.toHaveBeenCalled();
-    expect(result.ok).toBe(false);
-    expect(result.message).toContain('ML_REMOVE_URL');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toBe('http://ml/api/v1/employees/sync-ml');
+    expect(init.method).toBe('DELETE');
+    expect(JSON.parse(init.body)).toEqual({ employeeId: 'EMP-001', name: 'Budi' });
+    expect(result.ok).toBe(true);
   });
 
   it('removeEmployee harus mengirim JSON { employeeId, name } ke ML_REMOVE_URL', async () => {
@@ -116,6 +120,7 @@ describe('MlRegisterService', () => {
 
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
     expect(url).toBe('http://ml/api/v1/employees/remove');
+    expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({ employeeId: 'EMP-001', name: 'Budi' });
     expect(result.ok).toBe(true);
   });
