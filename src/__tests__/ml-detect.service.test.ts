@@ -21,6 +21,8 @@ describe('MlDetectService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    // Polling diizinkan pada 08:30–12:00 WIB; jangan bergantung pada jam mesin CI.
+    jest.setSystemTime(new Date('2026-09-15T02:00:00.000Z'));
     service = new MlDetectService(mockLive);
     global.fetch = jest.fn();
   });
@@ -112,9 +114,12 @@ describe('MlDetectService', () => {
     await flush();
     expect(mockLive.recordRecognition).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(10000);
-    await flush();
+    await jest.advanceTimersByTimeAsync(5000);
     expect(mockLive.recordRecognition).toHaveBeenCalledTimes(1);
+
+    // Batas debounce saat ini 10 detik; tepat pada batas boleh diteruskan lagi.
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(mockLive.recordRecognition).toHaveBeenCalledTimes(2);
   });
 
   it('harus tidak merekam apapun jika /detect gagal', async () => {

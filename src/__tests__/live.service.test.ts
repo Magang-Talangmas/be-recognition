@@ -2,6 +2,13 @@ import { LiveMonitoringService } from '../services/live.service';
 import { LiveMonitoringRepository } from '../repositories/live.repository';
 import { NotFoundError } from '../errors/NotFoundError';
 
+jest.mock('../lib/storage', () => ({
+  captureAndUploadSnapshot: jest.fn().mockResolvedValue(null),
+}));
+jest.mock('../lib/firebase', () => ({
+  sendPushNotification: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../lib/live/sse-hub', () => ({
   liveSseHub: {
     subscribe: jest.fn(),
@@ -67,6 +74,7 @@ describe('LiveMonitoringService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLiveRepository.findTodayRecognitionByEmployee.mockResolvedValue(null);
     (mockLiveRepository.findEmployeeFcmToken as jest.Mock).mockResolvedValue(null);
     service = new LiveMonitoringService(mockLiveRepository, mockAttendanceService);
   });
@@ -237,8 +245,10 @@ describe('LiveMonitoringService', () => {
         confidence: 41.3,
       });
 
-      // Tidak ada guard untuk employeeId null
-      expect(mockLiveRepository.findTodayRecognitionByEmployee).not.toHaveBeenCalled();
+      // Guard harian juga berlaku untuk wajah yang tidak dikenal.
+      expect(mockLiveRepository.findTodayRecognitionByEmployee).toHaveBeenCalledWith(
+        null, expect.any(Date), undefined,
+      );
       expect(mockLiveRepository.createNotification).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'unknown' }),
       );
