@@ -25,6 +25,10 @@ export class CctvRepository {
     return this.prisma.camera.findUnique({ where: { rtspUrl } });
   }
 
+  async findByStreamPath(streamPath: string): Promise<Camera | null> {
+    return this.prisma.camera.findUnique({ where: { streamPath } });
+  }
+
   async findMany(filter: CctvFilterInput): Promise<CctvListRows> {
     const skip = (filter.page - 1) * filter.per_page;
 

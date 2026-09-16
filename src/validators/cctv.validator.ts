@@ -9,6 +9,20 @@ const optionalString = <T extends z.ZodTypeAny>(schema: T) =>
     .transform((val) => (val === '' ? undefined : val));
 
 const RTSP_URL_REGEX = /^rtsps?:\/\/[^\s/]+(\/[^\s]*)?$/i;
+const STREAM_PATH_REGEX = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+const streamPathSchema = z
+  .string({ required_error: 'streamPath wajib diisi' })
+  .trim()
+  .regex(
+    STREAM_PATH_REGEX,
+    'streamPath hanya boleh huruf, angka, garis bawah, atau tanda hubung',
+  );
+
+const rtspUrlSchema = z
+  .string()
+  .trim()
+  .regex(RTSP_URL_REGEX, 'Format RTSP URL tidak valid');
 
 export const createCctvSchema = z.object({
   name: z
@@ -19,20 +33,27 @@ export const createCctvSchema = z.object({
     .string({ required_error: 'location wajib diisi' })
     .trim()
     .min(1, 'location tidak boleh kosong'),
-  rtspUrl: z
-    .string({ required_error: 'rtspUrl wajib diisi' })
-    .trim()
-    .regex(RTSP_URL_REGEX, 'Format RTSP URL tidak valid'),
+  sourceType: z.enum(['RTSP', 'RTMP']).default('RTSP'),
+  streamPath: streamPathSchema,
+  rtspUrl: optionalString(rtspUrlSchema),
   online: z.boolean().optional(),
   enabled: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  if (data.sourceType === 'RTSP' && !data.rtspUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['rtspUrl'],
+      message: 'RTSP URL wajib diisi untuk sumber CCTV',
+    });
+  }
 });
 
 export const updateCctvSchema = z.object({
   name: optionalString(z.string().trim().min(1, 'name tidak boleh kosong')),
   location: optionalString(z.string().trim().min(1, 'location tidak boleh kosong')),
-  rtspUrl: optionalString(
-    z.string().trim().regex(RTSP_URL_REGEX, 'Format RTSP URL tidak valid'),
-  ),
+  sourceType: z.enum(['RTSP', 'RTMP']).optional(),
+  streamPath: optionalString(streamPathSchema),
+  rtspUrl: optionalString(rtspUrlSchema),
   online: z.boolean().optional(),
   enabled: z.boolean().optional(),
 });

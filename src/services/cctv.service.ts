@@ -52,6 +52,8 @@ function toDTO(camera: Camera): CctvDTO {
     name: camera.name,
     location: camera.location ?? '',
     rtspUrl: camera.rtspUrl,
+    sourceType: camera.sourceType,
+    streamPath: camera.streamPath,
     online: camera.isOnline,
     enabled: camera.enabled,
     createdAt: camera.createdAt.toISOString(),
@@ -63,9 +65,16 @@ export class CctvService {
   constructor(private readonly cctvRepository: CctvRepository) {}
 
   async createCctv(data: CreateCctvInput): Promise<CctvDTO> {
-    const existingRtspUrl = await this.cctvRepository.findByRtspUrl(data.rtspUrl);
-    if (existingRtspUrl) {
-      throw new ConflictError(`RTSP URL ${data.rtspUrl} sudah terdaftar`);
+    if (data.rtspUrl) {
+      const existingRtspUrl = await this.cctvRepository.findByRtspUrl(data.rtspUrl);
+      if (existingRtspUrl) {
+        throw new ConflictError(`RTSP URL ${data.rtspUrl} sudah terdaftar`);
+      }
+    }
+
+    const existingStreamPath = await this.cctvRepository.findByStreamPath(data.streamPath);
+    if (existingStreamPath) {
+      throw new ConflictError(`Path stream ${data.streamPath} sudah terdaftar`);
     }
 
     for (let attempt = 0; attempt < MAX_CAMERA_ID_RETRY; attempt++) {
@@ -75,6 +84,8 @@ export class CctvService {
           name: data.name,
           location: data.location,
           rtspUrl: data.rtspUrl,
+          sourceType: data.sourceType,
+          streamPath: data.streamPath,
           isOnline: data.online ?? true,
           enabled: data.enabled ?? true,
         });
@@ -120,10 +131,19 @@ export class CctvService {
       }
     }
 
+    if (data.streamPath && data.streamPath !== existing.streamPath) {
+      const existingStreamPath = await this.cctvRepository.findByStreamPath(data.streamPath);
+      if (existingStreamPath) {
+        throw new ConflictError(`Path stream ${data.streamPath} sudah terdaftar`);
+      }
+    }
+
     const camera = await this.cctvRepository.update(id, {
       name: data.name,
       location: data.location,
       rtspUrl: data.rtspUrl,
+      sourceType: data.sourceType,
+      streamPath: data.streamPath,
       isOnline: data.online,
       enabled: data.enabled,
     });

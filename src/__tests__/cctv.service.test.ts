@@ -8,6 +8,7 @@ const mockCctvRepository = {
   findById: jest.fn(),
   findByCameraId: jest.fn(),
   findByRtspUrl: jest.fn(),
+  findByStreamPath: jest.fn(),
   findMany: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
@@ -20,6 +21,8 @@ const mockCamera = {
   name: 'Pintu Masuk',
   location: 'Lantai 1 - Lobby',
   rtspUrl: 'rtsp://192.168.1.101:554/stream',
+  sourceType: 'RTSP',
+  streamPath: 'pintu-masuk',
   isOnline: true,
   enabled: true,
   createdAt: new Date('2026-08-05T00:00:00.000Z'),
@@ -38,11 +41,14 @@ describe('CctvService', () => {
     const createData = {
       name: 'Pintu Masuk',
       location: 'Lantai 1 - Lobby',
+      sourceType: 'RTSP' as const,
+      streamPath: 'pintu-masuk',
       rtspUrl: 'rtsp://192.168.1.101:554/stream',
     };
 
     it('harus berhasil membuat CCTV dengan cameraId CAM-XX auto-generated', async () => {
       (mockCctvRepository.findByRtspUrl as jest.Mock).mockResolvedValue(null);
+      (mockCctvRepository.findByStreamPath as jest.Mock).mockResolvedValue(null);
       (mockCctvRepository.findMaxCameraIdNumber as jest.Mock).mockResolvedValue(6);
       (mockCctvRepository.create as jest.Mock).mockResolvedValue(mockCamera);
 
@@ -56,6 +62,8 @@ describe('CctvService', () => {
           cameraId: 'CAM-07',
           name: 'Pintu Masuk',
           location: 'Lantai 1 - Lobby',
+          sourceType: 'RTSP',
+          streamPath: 'pintu-masuk',
           rtspUrl: 'rtsp://192.168.1.101:554/stream',
           isOnline: true,
           enabled: true,
@@ -76,6 +84,34 @@ describe('CctvService', () => {
 
       await expect(service.createCctv(createData)).rejects.toThrow(ConflictError);
       expect(mockCctvRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('harus membuat kamera RTMP tanpa RTSP URL', async () => {
+      (mockCctvRepository.findByStreamPath as jest.Mock).mockResolvedValue(null);
+      (mockCctvRepository.findMaxCameraIdNumber as jest.Mock).mockResolvedValue(6);
+      (mockCctvRepository.create as jest.Mock).mockResolvedValue({
+        ...mockCamera,
+        cameraId: 'CAM-07',
+        sourceType: 'RTMP',
+        streamPath: 'hp-lantai-2',
+        rtspUrl: null,
+      });
+
+      await service.createCctv({
+        name: 'HP Lantai 2',
+        location: 'Lantai 2',
+        sourceType: 'RTMP',
+        streamPath: 'hp-lantai-2',
+      });
+
+      expect(mockCctvRepository.findByRtspUrl).not.toHaveBeenCalled();
+      expect(mockCctvRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceType: 'RTMP',
+          streamPath: 'hp-lantai-2',
+          rtspUrl: undefined,
+        }),
+      );
     });
   });
 

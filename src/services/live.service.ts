@@ -33,8 +33,8 @@ function toTimeString(date: Date): string {
   return dayjs(date).tz('Asia/Jakarta').format('HH:mm:ss');
 }
 
-function buildHlsUrl(cameraId: string): string | null {
-  const path = env.AI_STREAM_HLS_PATHS[cameraId];
+function buildHlsUrl(streamPath: string | null): string | null {
+  const path = streamPath;
   if (!env.AI_STREAM_HLS_BASE_URL || !path) return null;
 
   const baseUrl = env.AI_STREAM_HLS_BASE_URL.replace(/\/+$/, '');
@@ -43,8 +43,8 @@ function buildHlsUrl(cameraId: string): string | null {
 }
 
 function toFeedDTO(camera: Camera): LiveFeedDTO {
-  const hlsIsConfigured = Object.keys(env.AI_STREAM_HLS_PATHS).length > 0;
-  const hlsUrl = buildHlsUrl(camera.cameraId);
+  const hlsIsConfigured = Boolean(env.AI_STREAM_HLS_BASE_URL);
+  const hlsUrl = buildHlsUrl(camera.streamPath);
   const canStream = camera.isOnline && camera.enabled && (!hlsIsConfigured || Boolean(hlsUrl));
   return {
     id: camera.cameraId,

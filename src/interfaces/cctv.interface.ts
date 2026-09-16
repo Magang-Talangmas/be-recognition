@@ -4,6 +4,8 @@ export interface CctvDTO {
   name: string;
   location: string;
   rtspUrl: string | null;
+  sourceType: 'RTSP' | 'RTMP';
+  streamPath: string | null;
   online: boolean;
   enabled: boolean;
   createdAt: string;

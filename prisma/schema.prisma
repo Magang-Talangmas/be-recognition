@@ -92,6 +92,8 @@ model Camera {
   name      String
   location  String?
   rtspUrl   String?  @unique
+  sourceType CameraSourceType @default(RTSP)
+  streamPath String?  @unique
   isOnline  Boolean  @default(true)
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -99,6 +101,11 @@ model Camera {
 
   @@index([cameraId])
   @@map("cameras")
+}
+
+enum CameraSourceType {
+  RTSP
+  RTMP
 }
 
 model RecognitionEvent {

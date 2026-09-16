@@ -25,32 +25,6 @@ const envSchema = z.object({
     .string()
     .default('http://192.168.77.171:8888'),
   AI_STREAM_HLS_BASE_URL: z.string().default(''),
-  AI_STREAM_HLS_PATHS: z
-    .string()
-    .default('{}')
-    .transform((value, ctx): Record<string, string> => {
-      try {
-        const parsed: unknown = JSON.parse(value);
-        if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-          throw new Error('bukan object');
-        }
-
-        return Object.fromEntries(
-          Object.entries(parsed).filter(
-            ([cameraId, path]) =>
-              typeof cameraId === 'string' &&
-              typeof path === 'string' &&
-              path.trim().length > 0,
-          ),
-        );
-      } catch {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'AI_STREAM_HLS_PATHS harus JSON object, contoh: {"CAM-01":"stream"}',
-        });
-        return z.NEVER;
-      }
-    }),
   AI_STREAM_WHEP_URL: z
     .string()
     .default('http://192.168.77.171:8889/stream/whep'),
