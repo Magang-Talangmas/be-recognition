@@ -109,7 +109,7 @@ describe('CctvService', () => {
         expect.objectContaining({
           sourceType: 'RTMP',
           streamPath: 'hp-lantai-2',
-          rtspUrl: undefined,
+          rtspUrl: null,
         }),
       );
     });

@@ -83,7 +83,7 @@ export class CctvService {
           cameraId: await this.generateCameraId(),
           name: data.name,
           location: data.location,
-          rtspUrl: data.rtspUrl,
+          rtspUrl: data.sourceType === 'RTMP' ? null : data.rtspUrl,
           sourceType: data.sourceType,
           streamPath: data.streamPath,
           isOnline: data.online ?? true,
@@ -141,7 +141,7 @@ export class CctvService {
     const camera = await this.cctvRepository.update(id, {
       name: data.name,
       location: data.location,
-      rtspUrl: data.rtspUrl,
+      rtspUrl: data.sourceType === 'RTMP' ? null : data.rtspUrl,
       sourceType: data.sourceType,
       streamPath: data.streamPath,
       isOnline: data.online,
