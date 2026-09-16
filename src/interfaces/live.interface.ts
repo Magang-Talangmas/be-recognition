@@ -16,6 +16,7 @@ export interface LiveFeedDTO {
   rtspUrl: string | null;
   snapshotUrl: string | null; // proxy snapshot (renderable di <img>)
   streamUrl: string | null; // proxy MJPEG stream / fallback WebRTC player (renderable di <img>/<video>)
+  hlsUrl: string | null; // halaman HLS MediaMTX untuk browser
   whepUrl: string | null; // WebRTC WHEP endpoint (POST SDP offer untuk live stream)
 }
 

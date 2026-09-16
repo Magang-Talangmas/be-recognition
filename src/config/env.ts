@@ -24,6 +24,7 @@ const envSchema = z.object({
   AI_STREAM_BASE_URL: z
     .string()
     .default('http://192.168.77.171:8888'),
+  AI_STREAM_HLS_URL: z.string().default(''),
   AI_STREAM_WHEP_URL: z
     .string()
     .default('http://192.168.77.171:8889/stream/whep'),

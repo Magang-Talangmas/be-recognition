@@ -43,6 +43,7 @@ function toFeedDTO(camera: Camera): LiveFeedDTO {
     rtspUrl: camera.rtspUrl,
     snapshotUrl: canStream ? '/v1/cameras/snapshot' : null,
     streamUrl: canStream ? env.AI_STREAM_URL : null,
+    hlsUrl: canStream ? env.AI_STREAM_HLS_URL || null : null,
     whepUrl: canStream ? env.AI_STREAM_WHEP_URL : null,
   };
 }
